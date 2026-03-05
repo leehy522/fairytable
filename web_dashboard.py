@@ -74,7 +74,7 @@ st.set_page_config(page_title="요정비닐 스마트 시스템", layout="wide")
 
 # 사이드바 메뉴 설정
 st.sidebar.title("요정비닐 메뉴")
-menu = st.sidebar.radio("원하는 작업을 선택하세요", ["📈 시장 지표 분석", "🚚 밀크런 PPT 변환"])
+menu = st.sidebar.radio("원하는 작업을 선택하세요", ["📈 시장 지표 분석", "🚚 밀크런 PPT 변환", "📦 택배 송장 변환"])
 
 # --- 메뉴 1: 시장 지표 분석 ---
 if menu == "📈 시장 지표 분석":
@@ -121,9 +121,6 @@ elif menu == "🚚 밀크런 PPT 변환":
         if st.button("🚀 PPT 생성 시작"):
             # ... (변환 실행 로직) ...
             st.success("변환 성공!")
-
-# 사이드바 메뉴 확장
-menu = st.sidebar.radio("원하는 작업을 선택하세요", ["📈 시장 지표 분석", "🚚 밀크런 PPT 변환", "📦 택배 송장 변환"])
 
 # --- 메뉴 3: 택배 송장 변환 (A-type 변환기 로직 이식) ---
 if menu == "📦 택배 송장 변환":
@@ -190,3 +187,4 @@ if menu == "📦 택배 송장 변환":
                     )
             except Exception as e:
                 st.error(f"❌ 변환 실패: {e}")
+
