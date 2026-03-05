@@ -221,5 +221,44 @@ if menu == "🏭 원가 시뮬레이터":
         total_material_cost = final_weight * estimated_cost_per_kg
         st.success(f"💰 해당 롤(Roll)당 예상 원가: **₩{total_material_cost:,.0f}**")
 
+import streamlit as st
+
+# --- [비닐 원단 계산 로직 통합] ---
+# 1. 무게 계산: (폭) * (길이) * 2 * 0.92 * (두께) = (무게)
+# 2. 두께 계산: (무게) / ((폭) * (길이) * 2 * 0.92) = (두께)
+
+if menu == "🏭 원가 시뮬레이터":
+    st.divider()
+    st.subheader("📏 원단 규격 정밀 계산기")
+    
+    # 계산 모드 선택
+    calc_mode = st.radio("계산 모드 선택", ["⚖️ 무게 산출 (발주용)", "🔍 두께 역산 (검수용)"], horizontal=True)
+
+    c1, c2, c3 = st.columns(3)
+    
+    with c1:
+        v_width = st.number_input("비닐 폭 (mm)", value=300, step=10)
+        width_m = v_width / 1000
+    with c2:
+        v_length = st.number_input("원단 총 길이 (m)", value=500, step=50)
+
+    if calc_mode == "⚖️ 무게 산출 (발주용)":
+        with c3:
+            v_thick = st.number_input("비닐 두께 (mm)", value=0.05, step=0.005, format="%.3f")
+        
+        # 무게 계산
+        res_weight = width_m * v_length * 2 * 0.92 * v_thick
+        st.info(f"💡 예상 원단 무게: **{res_weight:.2f} kg**")
+
+    else: # 🔍 두께 역산 (검수용)
+        with c3:
+            v_weight = st.number_input("실제 원단 무게 (kg)", value=13.8, step=0.1)
+        
+        # 두께 역산 공식 적용
+        # 두께 = 무게 / (폭(m) * 길이(m) * 2 * 92)
+        if width_m > 0 and v_length > 0:
+            res_thick = v_weight / (width_m * v_length * 2 * 0.92)
+            st.warning(f"💡 역산된 비닐 두께: **{res_thick:.4f} mm**")
+            st.caption("※ 소수점 4자리까지 정밀 표시됩니다. 실제 발주 규격과 비교해 보세요.")
 
 
