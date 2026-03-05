@@ -9,6 +9,7 @@ import copy
 from pptx import Presentation
 from pptx.util import Pt
 from datetime import datetime
+import os
 
 # --- [공통 로직: 밀크런 관련 함수] ---
 def get_pallet_capacity(sku):
@@ -120,3 +121,72 @@ elif menu == "🚚 밀크런 PPT 변환":
         if st.button("🚀 PPT 생성 시작"):
             # ... (변환 실행 로직) ...
             st.success("변환 성공!")
+
+# 사이드바 메뉴 확장
+menu = st.sidebar.radio("원하는 작업을 선택하세요", ["📈 시장 지표 분석", "🚚 밀크런 PPT 변환", "📦 택배 송장 변환"])
+
+# --- 메뉴 3: 택배 송장 변환 (A-type 변환기 로직 이식) ---
+if menu == "📦 택배 송장 변환":
+    st.title("📦 택배 송장 자동 변환기 (A-type)")
+    st.write("원본 주문 엑셀을 템플릿 양식에 맞춰 변환합니다.")
+
+    # 파일 업로드 (메모리 상에서 처리)
+    col1, col2 = st.columns(2)
+    with col1:
+        input_file = st.file_uploader("1. 원본 주문 엑셀 선택", type=['xlsx', 'xls'])
+    with col2:
+        template_file = st.file_uploader("2. 템플릿 엑셀(A-type 양식) 선택", type=['xlsx', 'xls'])
+
+    if input_file and template_file:
+        if st.button("🚀 변환 실행"):
+            try:
+                # 1. 파일 읽기 (숫자 자동변환 방지를 위해 모든 데이터 문자로 읽기)
+                src = pd.read_excel(input_file, dtype=str)
+                template = pd.read_excel(template_file, dtype=str)
+
+                # 2. 매핑 및 검증 로직
+                mapping = {
+                    "주문번호": "Order ID",
+                    "받는사람": "Receiver Name",
+                    "전화번호1": "Mobile",
+                    "전화번호2": "Mobile",
+                    "우편번호": "Zip Code",
+                    "주소": "Detailed address",
+                    "상품명1": "Product Information",
+                }
+                city_candidates = ["City", "city", "도시", "시", "시/군/구", "Town"]
+
+                # 원본 파일 컬럼 검증
+                required_src = sorted(set(mapping.values()))
+                missing_src = [c for c in required_src if c not in src.columns]
+                city_col = next((c for c in city_candidates if c in src.columns), None)
+
+                if missing_src or not city_col:
+                    st.error(f"⚠️ 원본 파일의 컬럼이 일치하지 않아요. (누락: {missing_src}, City 컬럼 확인 필요)")
+                else:
+                    # 3. 데이터 변환 처리
+                    out = pd.DataFrame()
+                    for out_col, src_col in mapping.items():
+                        out[out_col] = src[src_col].fillna("").astype(str)
+
+                    # 주소 결합 로직 (City + Detailed address)
+                    out["주소"] = (
+                        src[city_col].fillna("").astype(str).str.strip()
+                        + " "
+                        + src["Detailed address"].fillna("").astype(str).str.strip()
+                    ).str.strip()
+
+                    # 4. 결과 다운로드 생성
+                    output = io.BytesIO()
+                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                        out.to_excel(writer, index=False)
+                    
+                    st.success(f"✅ 변환 완료! (총 {len(out)}행)")
+                    st.download_button(
+                        label="📥 변환된 엑셀 다운로드",
+                        data=output.getvalue(),
+                        file_name=f"요정비닐_A타입_변환_{datetime.now().strftime('%m%d')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+            except Exception as e:
+                st.error(f"❌ 변환 실패: {e}")
