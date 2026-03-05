@@ -10,6 +10,7 @@ from pptx import Presentation
 from pptx.util import Pt
 from datetime import datetime
 import os
+import plotly.express as px
 
 # --- [공통 로직: 밀크런 관련 함수] ---
 def get_pallet_capacity(sku):
@@ -74,7 +75,7 @@ st.set_page_config(page_title="요정비닐 스마트 시스템", layout="wide")
 
 # 사이드바 메뉴 설정
 st.sidebar.title("요정비닐 메뉴")
-menu = st.sidebar.radio("원하는 작업을 선택하세요", ["📈 시장 지표 분석", "🚚 밀크런 PPT 변환", "📦 택배 송장 변환"])
+menu = st.sidebar.radio("메뉴 선택", ["💰 종합 매출 분석", "📈 시장 지표 분석", "🚚 밀크런 PPT 변환", "📦 택배 송장 변환"])
 
 # --- 메뉴 1: 시장 지표 분석 ---
 if menu == "📈 시장 지표 분석":
@@ -187,4 +188,40 @@ if menu == "📦 택배 송장 변환":
                     )
             except Exception as e:
                 st.error(f"❌ 변환 실패: {e}")
+
+if menu == "💰 종합 매출 분석":
+    st.title("💰 요정비닐 종합 매출 분석")
+    st.write("쿠팡 로켓배송의 월별 매출 및 정산 현황을 분석합니다.")
+
+    # 파일 업로드 (보내주신 '종합_로켓_매출.csv' 파일을 올리시면 됩니다)
+    uploaded_file = st.file_uploader("종합_로켓_매출 데이터를 업로드하세요", type=['csv', 'xlsx'])
+
+    if uploaded_file:
+        # 데이터 로드 (5행부터 데이터 시작임을 반영)
+        df = pd.read_csv(uploaded_file, skiprows=5) # CSV 기준
+        
+        # 필요한 컬럼만 추출 및 정제 (예시: 월, 매출액, 성장장려금, 정산액)
+        # 엑셀 구조에 맞춰 컬럼명을 조정합니다.
+        df.columns = ['월', '매출액', '성장장려금', '기타공제', '최종정산액', '비고']
+        df['매출액'] = pd.to_numeric(df['매출액'].str.replace(',', ''), errors='coerce')
+        df['최종정산액'] = pd.to_numeric(df['최종정산액'].str.replace(',', ''), errors='coerce')
+
+        # 1. 핵심 지표 (Metric)
+        total_rev = df['매출액'].sum()
+        avg_rev = df['매출액'].mean()
+        
+        c1, c2, c3 = st.columns(3)
+        c1.metric("총 누적 매출", f"{total_rev:,.0f}원")
+        c2.metric("월 평균 매출", f"{avg_rev:,.0f}원")
+        c3.metric("최근 정산액", f"{df['최종정산액'].iloc[-1]:,.0f}원")
+
+        # 2. 매출 추이 그래프
+        fig = px.line(df, x='월', y=['매출액', '최종정산액'], 
+                     title="월별 매출 및 정산액 추이",
+                     markers=True, template="plotly_white")
+        st.plotly_chart(fig, use_container_width=True)
+
+        # 3. 데이터 테이블
+        with st.expander("상세 데이터 보기"):
+            st.dataframe(df.style.format({'매출액': '{:,.0f}', '최종정산액': '{:,.0f}'}))
 
