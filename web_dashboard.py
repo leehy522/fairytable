@@ -187,6 +187,8 @@ if menu == "📦 택배 송장 변환":
                     )
             except Exception as e:
                 st.error(f"❌ 변환 실패: {e}")
+
+
 # --- [초기 데이터 설정] ---
 if 'sales_df' not in st.session_state:
     raw_data = [
@@ -198,6 +200,10 @@ if 'sales_df' not in st.session_state:
         {"월": "24-06", "매출액": 52100000, "최종정산액": 43200000, "성장장려금": 5210000},
     ]
     st.session_state.sales_df = pd.DataFrame(raw_data)
+
+# --- [메인 대시보드] ---
+st.set_page_config(page_title="요정비닐 관리 시스템", layout="wide")
+menu = st.sidebar.radio("메뉴", ["💰 종합 매출 분석/수정", "📈 시장 지표", "🚚 밀크런", "📦 택배"])
 
 if menu == "💰 종합 매출 분석/수정":
     st.title("💰 요정비닐 매출 데이터 편집기")
@@ -238,4 +244,3 @@ if menu == "💰 종합 매출 분석/수정":
     plt.grid(True, alpha=0.3)
     plt.legend()
     st.pyplot(fig)
-
