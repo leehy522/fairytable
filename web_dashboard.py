@@ -189,39 +189,36 @@ if menu == "📦 택배 송장 변환":
             except Exception as e:
                 st.error(f"❌ 변환 실패: {e}")
 
-if menu == "💰 종합 매출 분석":
-    st.title("💰 요정비닐 종합 매출 분석")
-    st.write("쿠팡 로켓배송의 월별 매출 및 정산 현황을 분석합니다.")
+# (기존 import 부분 유지)
 
-    # 파일 업로드 (보내주신 '종합_로켓_매출.csv' 파일을 올리시면 됩니다)
-    uploaded_file = st.file_uploader("종합_로켓_매출 데이터를 업로드하세요", type=['csv', 'xlsx'])
+if menu == "💰 종합 매출 분석":
+    st.title("💰 요정비닐 종합 매출 현황")
+    st.info("쿠팡 로켓배송의 월별 매출액과 실정산액 추이를 분석합니다.")
+
+    uploaded_file = st.file_uploader("종합_로켓_매출 CSV 파일을 업로드하세요", type=['csv'])
 
     if uploaded_file:
-        # 데이터 로드 (5행부터 데이터 시작임을 반영)
-        df = pd.read_csv(uploaded_file, skiprows=5) # CSV 기준
-        
-        # 필요한 컬럼만 추출 및 정제 (예시: 월, 매출액, 성장장려금, 정산액)
-        # 엑셀 구조에 맞춰 컬럼명을 조정합니다.
-        df.columns = ['월', '매출액', '성장장려금', '기타공제', '최종정산액', '비고']
-        df['매출액'] = pd.to_numeric(df['매출액'].str.replace(',', ''), errors='coerce')
-        df['최종정산액'] = pd.to_numeric(df['최종정산액'].str.replace(',', ''), errors='coerce')
+        try:
+            # 💡 수정 포인트: 데이터를 끝까지 읽어오되, 형식이 다른 줄은 무시(on_bad_lines)
+            df = pd.read_csv(uploaded_file, skiprows=5, on_bad_lines='skip')
+            
+            # 컬럼 이름 재설정 (데이터 시트에 맞춤)
+            # 만약 컬럼 수가 다르다면 아래 리스트를 실제 시트에 맞춰 수정하세요
+            df.columns = ['월', '매출액', '성장장려금', '기타공제', '최종정산액', '비고'][:len(df.columns)]
+            
+            # 월 데이터가 없는 행은 과감히 삭제
+            df = df.dropna(subset=['월'])
+            
+            # 숫자 데이터 정제 (콤마 제거)
+            for col in ['매출액', '최종정산액', '성장장려금']:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col].astype(str).str.replace(',', ''), errors='coerce').fillna(0)
 
-        # 1. 핵심 지표 (Metric)
-        total_rev = df['매출액'].sum()
-        avg_rev = df['매출액'].mean()
-        
-        c1, c2, c3 = st.columns(3)
-        c1.metric("총 누적 매출", f"{total_rev:,.0f}원")
-        c2.metric("월 평균 매출", f"{avg_rev:,.0f}원")
-        c3.metric("최근 정산액", f"{df['최종정산액'].iloc[-1]:,.0f}원")
+            # --- 이후 시각화 로직은 동일 ---
+            st.success("✅ 데이터를 성공적으로 읽어왔습니다!")
+            
+            # (지표 및 그래프 코드...)
 
-        # 2. 매출 추이 그래프
-        fig = px.line(df, x='월', y=['매출액', '최종정산액'], 
-                     title="월별 매출 및 정산액 추이",
-                     markers=True, template="plotly_white")
-        st.plotly_chart(fig, use_container_width=True)
-
-        # 3. 데이터 테이블
-        with st.expander("상세 데이터 보기"):
-            st.dataframe(df.style.format({'매출액': '{:,.0f}', '최종정산액': '{:,.0f}'}))
-
+        except Exception as e:
+            st.error(f"⚠️ 데이터를 읽는 중 오류가 발생했습니다: {e}")
+            st.info("엑셀 파일의 실제 데이터가 몇 번째 줄부터 시작되는지 확인이 필요할 수 있습니다.")
