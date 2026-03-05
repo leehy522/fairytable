@@ -10,7 +10,6 @@ from pptx import Presentation
 from pptx.util import Pt
 from datetime import datetime
 import os
-import plotly.express as px
 
 # --- [공통 로직: 밀크런 관련 함수] ---
 def get_pallet_capacity(sku):
@@ -222,3 +221,4 @@ if menu == "💰 종합 매출 분석":
         except Exception as e:
             st.error(f"⚠️ 데이터를 읽는 중 오류가 발생했습니다: {e}")
             st.info("엑셀 파일의 실제 데이터가 몇 번째 줄부터 시작되는지 확인이 필요할 수 있습니다.")
+
