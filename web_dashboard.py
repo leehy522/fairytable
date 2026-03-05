@@ -188,10 +188,6 @@ if menu == "📦 택배 송장 변환":
             except Exception as e:
                 st.error(f"❌ 변환 실패: {e}")
 
-import streamlit as st
-import pandas as pd
-import matplotlib.pyplot as plt
-
 # --- [초기 데이터 설정] ---
 if 'sales_df' not in st.session_state:
     raw_data = [
@@ -205,8 +201,6 @@ if 'sales_df' not in st.session_state:
     st.session_state.sales_df = pd.DataFrame(raw_data)
 
 # --- [메인 대시보드] ---
-
-
 if menu == "💰 종합 매출 분석/수정":
     st.title("💰 요정비닐 매출 데이터 편집기")
     st.info("표의 숫자를 클릭하여 직접 수정할 수 있습니다. 수정 후 그래프에 즉시 반영됩니다.")
@@ -246,4 +240,3 @@ if menu == "💰 종합 매출 분석/수정":
     plt.grid(True, alpha=0.3)
     plt.legend()
     st.pyplot(fig)
-
