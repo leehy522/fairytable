@@ -189,7 +189,7 @@ if menu == "📦 택배 송장 변환":
                 st.error(f"❌ 변환 실패: {e}")
 
 # --- [비닐 원단 규격 계산 로직] ---
-# 윤겸님이 알려주신 공식: (폭) * (길이) * 2 * 92 * (두께) = (무게)
+# 윤겸님이 알려주신 공식: (폭) * (길이) * 2 * 0.092 * (두께) = (무게)
 def calculate_vinyl_weight(width_mm, length_m, thickness_mm):
     # 단위를 미터(m)와 밀리미터(mm)로 조정하여 계산
     # 공식 내 '92'는 비닐의 밀도(LDPE/HDPE 계수)와 관련된 고정 상수로 보입니다.
@@ -220,3 +220,4 @@ if menu == "🏭 원가 시뮬레이터":
     if 'estimated_cost_per_kg' in locals():
         total_material_cost = final_weight * estimated_cost_per_kg
         st.success(f"💰 해당 롤(Roll)당 예상 원가: **₩{total_material_cost:,.0f}**")
+
