@@ -73,8 +73,8 @@ def fill_slide_data(slide, p, po_num, fc_name, year, month, day):
 st.set_page_config(page_title="요정비닐 스마트 시스템", layout="wide")
 
 # 사이드바 메뉴 설정
-st.sidebar.title("요정비닐 메뉴")
-menu = st.sidebar.radio("메뉴 선택", ["💰 종합 매출 분석", "📈 시장 지표 분석", "🚚 밀크런 PPT 변환", "📦 택배 송장 변환"])
+st.set_page_config(page_title="요정비닐 관리 시스템", layout="wide")
+menu = st.sidebar.radio("메뉴", ["💰 종합 매출 분석/수정", "📈 시장 지표", "🚚 밀크런", "📦 택배"])
 
 # --- 메뉴 1: 시장 지표 분석 ---
 if menu == "📈 시장 지표 분석":
@@ -205,8 +205,7 @@ if 'sales_df' not in st.session_state:
     st.session_state.sales_df = pd.DataFrame(raw_data)
 
 # --- [메인 대시보드] ---
-st.set_page_config(page_title="요정비닐 관리 시스템", layout="wide")
-menu = st.sidebar.radio("메뉴", ["💰 종합 매출 분석/수정", "📈 시장 지표", "🚚 밀크런", "📦 택배"])
+
 
 if menu == "💰 종합 매출 분석/수정":
     st.title("💰 요정비닐 매출 데이터 편집기")
@@ -247,3 +246,4 @@ if menu == "💰 종합 매출 분석/수정":
     plt.grid(True, alpha=0.3)
     plt.legend()
     st.pyplot(fig)
+
