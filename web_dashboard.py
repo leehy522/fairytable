@@ -74,7 +74,7 @@ st.set_page_config(page_title="요정비닐 스마트 시스템", layout="wide")
 
 # 사이드바 메뉴 설정
 st.set_page_config(page_title="요정비닐 관리 시스템", layout="wide")
-menu = st.sidebar.radio("메뉴", ["💰 종합 매출 분석/수정", "📈 시장 지표", "🚚 밀크런", "📦 택배"])
+menu = st.sidebar.radio("메뉴", ["💰 종합 매출 분석/수정", "📈 시장 지표 분석", "🚚 밀크런 PPT 변환", "📦 택배 송장 변환"])
 
 # --- 메뉴 1: 시장 지표 분석 ---
 if menu == "📈 시장 지표 분석":
@@ -240,3 +240,4 @@ if menu == "💰 종합 매출 분석/수정":
     plt.grid(True, alpha=0.3)
     plt.legend()
     st.pyplot(fig)
+
