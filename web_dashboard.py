@@ -188,41 +188,6 @@ if menu == "📦 택배 송장 변환":
             except Exception as e:
                 st.error(f"❌ 변환 실패: {e}")
 
-# --- [비닐 원단 규격 계산 로직] ---
-# 윤겸님이 알려주신 공식: (폭) * (길이) * 2 * 0.92 * (두께) = (무게)
-def calculate_vinyl_weight(width_mm, length_m, thickness_mm):
-    # 단위를 미터(m)와 밀리미터(mm)로 조정하여 계산
-    # 공식 내 '92'는 비닐의 밀도(LDPE/HDPE 계수)와 관련된 고정 상수로 보입니다.
-    width_m = width_mm / 1000
-    weight = width_m * length_m * 2 * 0.92 * thickness_mm
-    return weight
-
-# 메뉴에 '규격/무게 계산기' 추가
-if menu == "🏭 원가 시뮬레이터":
-    st.divider()
-    st.subheader("📏 원단 규격별 무게 계산기")
-    st.write("비닐 규격을 입력하면 예상 원단 무게(kg)를 산출합니다.")
-
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        v_width = st.number_input("비닐 폭 (mm)", value=300, step=10)
-    with c2:
-        v_length = st.number_input("원단 총 길이 (m)", value=500, step=50)
-    with c3:
-        v_thick = st.number_input("비닐 두께 (mm)", value=0.05, step=0.01, format="%.3f")
-
-    # 공식 적용
-    final_weight = calculate_vinyl_weight(v_width, v_length, v_thick)
-    
-    st.info(f"💡 예상 원단 무게: **{final_weight:.2f} kg**")
-    
-    # 원가 시뮬레이터와 연동
-    if 'estimated_cost_per_kg' in locals():
-        total_material_cost = final_weight * estimated_cost_per_kg
-        st.success(f"💰 해당 롤(Roll)당 예상 원가: **₩{total_material_cost:,.0f}**")
-
-import streamlit as st
-
 # --- [비닐 원단 계산 로직 통합] ---
 # 1. 무게 계산: (폭) * (길이) * 2 * 0.92 * (두께) = (무게)
 # 2. 두께 계산: (무게) / ((폭) * (길이) * 2 * 0.92) = (두께)
@@ -260,5 +225,6 @@ if menu == "🏭 원가 시뮬레이터":
             res_thick = v_weight / (width_m * v_length * 2 * 0.92)
             st.warning(f"💡 역산된 비닐 두께: **{res_thick:.4f} mm**")
             st.caption("※ 소수점 4자리까지 정밀 표시됩니다. 실제 발주 규격과 비교해 보세요.")
+
 
 
