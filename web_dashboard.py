@@ -187,60 +187,58 @@ if menu == "📦 택배 송장 변환":
                     )
             except Exception as e:
                 st.error(f"❌ 변환 실패: {e}")
+# --- [초기 데이터 설정] ---
+if 'sales_df' not in st.session_state:
+    raw_data = [
+        {"월": "24-01", "매출액": 42560000, "최종정산액": 35240000, "성장장려금": 4256000},
+        {"월": "24-02", "매출액": 38920000, "최종정산액": 32150000, "성장장려금": 3892000},
+        {"월": "24-03", "매출액": 45120000, "최종정산액": 37800000, "성장장려금": 4512000},
+        {"월": "24-04", "매출액": 41200000, "최종정산액": 34100000, "성장장려금": 4120000},
+        {"월": "24-05", "매출액": 48750000, "최종정산액": 40500000, "성장장려금": 4875000},
+        {"월": "24-06", "매출액": 52100000, "최종정산액": 43200000, "성장장려금": 5210000},
+    ]
+    st.session_state.sales_df = pd.DataFrame(raw_data)
 
-import streamlit as st
-import pandas as pd
-import matplotlib.pyplot as plt
+# --- [메인 대시보드] ---
+st.set_page_config(page_title="요정비닐 관리 시스템", layout="wide")
+menu = st.sidebar.radio("메뉴", ["💰 종합 매출 분석/수정", "📈 시장 지표", "🚚 밀크런", "📦 택배"])
 
-# --- [내장 데이터베이스: 요정비닐 로켓매출 DB] ---
-# 엑셀 시트 '종합_로켓_매출'의 실제 데이터를 기반으로 구성함
-ROCKET_SALES_DB = [
-    {"월": "24-01", "매출액": 42560000, "최종정산액": 35240000, "성장장려금": 4256000},
-    {"월": "24-02", "매출액": 38920000, "최종정산액": 32150000, "성장장려금": 3892000},
-    {"월": "24-03", "매출액": 45120000, "최종정산액": 37800000, "성장장려금": 4512000},
-    {"월": "24-04", "매출액": 41200000, "최종정산액": 34100000, "성장장려금": 4120000},
-    {"월": "24-05", "매출액": 48750000, "최종정산액": 40500000, "성장장려금": 4875000},
-    {"월": "24-06", "매출액": 52100000, "최종정산액": 43200000, "성장장려금": 5210000},
-    {"월": "24-07", "매출액": 50800000, "최종정산액": 41900000, "성장장려금": 5080000},
-    {"월": "24-08", "매출액": 55400000, "최종정산액": 46100000, "성장장려금": 5540000},
-    {"월": "24-09", "매출액": 49200000, "최종정산액": 40800000, "성장장려금": 4920000},
-    {"월": "24-10", "매출액": 53600000, "최종정산액": 44200000, "성장장려금": 5360000},
-    {"월": "24-11", "매출액": 58900000, "최종정산액": 49100000, "성장장려금": 5890000},
-    {"월": "24-12", "매출액": 61200000, "최종정산액": 51000000, "성장장려금": 6120000},
-    # 25년 데이터는 정산 완료 시 여기에 추가
-]
+if menu == "💰 종합 매출 분석/수정":
+    st.title("💰 요정비닐 매출 데이터 편집기")
+    st.info("표의 숫자를 클릭하여 직접 수정할 수 있습니다. 수정 후 그래프에 즉시 반영됩니다.")
 
-def get_data():
-    return pd.DataFrame(ROCKET_SALES_DB)
+    # 1. 데이터 편집기 (st.data_editor 사용)
+    edited_df = st.data_editor(
+        st.session_state.sales_df,
+        num_rows="dynamic", # 행 추가/삭제 가능
+        use_container_width=True,
+        column_config={
+            "매출액": st.column_config.NumberColumn(format="₩%d"),
+            "최종정산액": st.column_config.NumberColumn(format="₩%d"),
+            "성장장려금": st.column_config.NumberColumn(format="₩%d"),
+        }
+    )
 
+    # 수정된 데이터 저장
+    if st.button("💾 변경사항 적용하기"):
+        st.session_state.sales_df = edited_df
+        st.success("데이터가 업데이트되었습니다!")
 
-if menu == "💰 종합 매출 분석":
-    st.title("💰 요정비닐 전용 매출 분석기")
-    st.info("쿠팡 로켓배송의 실정산액 추이입니다. (파일 업로드 없이 즉시 확인)")
-
-    df = get_data()
-    
-    # 주요 지표 계산
+    # 2. 업데이트된 데이터로 지표 계산
+    df = st.session_state.sales_df
     total_rev = df['매출액'].sum()
     total_settle = df['최종정산액'].sum()
-    avg_settle_rate = (total_settle / total_rev) * 100
     
-    c1, c2, c3 = st.columns(3)
+    c1, c2 = st.columns(2)
     c1.metric("총 누적 매출액", f"₩{total_rev:,.0f}")
     c2.metric("총 실정산액", f"₩{total_settle:,.0f}")
-    c3.metric("평균 정산율", f"{avg_settle_rate:.1f}%")
 
-    # 시각화 그래프
-    st.subheader("📊 연간 매출액 및 정산액 추이")
+    # 3. 시각화 그래프
+    st.subheader("📊 수정된 데이터 기반 매출 추이")
     fig, ax = plt.subplots(figsize=(10, 4))
-    ax.plot(df['월'], df['매출액'], label='공급가 매출', marker='o', color='#1f77b4', linewidth=2)
-    ax.plot(df['월'], df['최종정산액'], label='최종 정산액', marker='s', color='#ff7f0e', linewidth=2)
+    ax.plot(df['월'], df['매출액'], label='매출액', marker='o', color='#1f77b4')
+    ax.plot(df['월'], df['최종정산액'], label='정산액', marker='s', color='#ff7f0e')
     plt.xticks(rotation=45)
     plt.grid(True, alpha=0.3)
     plt.legend()
     st.pyplot(fig)
-
-    # 상세 데이터 테이블
-    with st.expander("📝 월별 상세 실적 보기"):
-        st.dataframe(df.style.format({'매출액': '{:,.0f}', '최종정산액': '{:,.0f}', '성장장려금': '{:,.0f}'}))
-
