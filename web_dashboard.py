@@ -213,9 +213,6 @@ ROCKET_SALES_DB = [
 def get_data():
     return pd.DataFrame(ROCKET_SALES_DB)
 
-# --- [메인 대시보드 화면] ---
-st.set_page_config(page_title="요정비닐 관리 시스템", layout="wide")
-menu = st.sidebar.radio("메뉴", ["💰 종합 매출 분석", "📈 시장 지표", "🚚 밀크런", "📦 택배"])
 
 if menu == "💰 종합 매출 분석":
     st.title("💰 요정비닐 전용 매출 분석기")
@@ -246,3 +243,4 @@ if menu == "💰 종합 매출 분석":
     # 상세 데이터 테이블
     with st.expander("📝 월별 상세 실적 보기"):
         st.dataframe(df.style.format({'매출액': '{:,.0f}', '최종정산액': '{:,.0f}', '성장장려금': '{:,.0f}'}))
+
