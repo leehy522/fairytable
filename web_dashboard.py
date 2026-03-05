@@ -226,53 +226,6 @@ if menu == "🏭 원가 시뮬레이터":
             st.warning(f"💡 역산된 비닐 두께: **{res_thick:.4f} mm**")
             st.caption("※ 소수점 4자리까지 정밀 표시됩니다. 실제 발주 규격과 비교해 보세요.")
 
-# --- [세션 상태: 저장된 규격 리스트 초기화] ---
-if 'saved_specs' not in st.session_state:
-    # 초기 기본 규격 예시
-    st.session_state.saved_specs = {
-        "기본 3040 택배봉투": {"width": 300, "length": 400, "thick": 0.050},
-        "기본 2030 지퍼백": {"width": 200, "length": 300, "thick": 0.050}
-    }
-
-if menu == "🏭 원가 시뮬레이터":
-    st.title("🏭 원가 시뮬레이터 (규격 저장형)")
-    
-    # 1. 규격 불러오기 섹션
-    with st.expander("📂 자주 쓰는 규격 불러오기", expanded=True):
-        selected_preset = st.selectbox("저장된 규격을 선택하세요", ["직접 입력"] + list(st.session_state.saved_specs.keys()))
-        
-        if selected_preset != "직접 입력":
-            spec = st.session_state.saved_specs[selected_preset]
-            st.info(f"📍 {selected_preset} 규격을 불러왔습니다.")
-        else:
-            spec = {"width": 300, "length": 500, "thick": 0.050}
-
-    # 2. 규격 입력 섹션
-    st.subheader("📏 상세 규격 설정")
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        v_width = st.number_input("비닐 폭 (mm)", value=spec["width"], step=10)
-    with c2:
-        v_length = st.number_input("원단 총 길이 (m)", value=spec["length"], step=50)
-    with c3:
-        v_thick = st.number_input("비닐 두께 (mm)", value=spec["thick"], step=0.005, format="%.3f")
-
-    # 3. 신규 규격 저장 기능
-    new_spec_name = st.text_input("현재 규격을 새 이름으로 저장 (예: 4050 대형봉투)")
-    if st.button("💾 규격 저장하기"):
-        if new_spec_name:
-            st.session_state.saved_specs[new_spec_name] = {
-                "width": v_width, "length": v_length, "thick": v_thick
-            }
-            st.success(f"'{new_spec_name}' 규격이 저장되었습니다!")
-            st.rerun() # 화면 새로고침하여 리스트 업데이트
-
-    # 4. 무게 및 원가 계산 실행 (기존 공식 적용)
-    width_m = v_width / 1000
-    res_weight = width_m * v_length * 2 * 92 * v_thick
-    st.divider()
-    st.subheader(f"⚖️ 계산 결과: {res_weight:.2f} kg")
-
 # --- [원재료 단가 및 혼합 로직] ---
 def calculate_material_cost(v_price, r_price, v_ratio, c_price, c_ratio):
     # 1. 기초 원료 혼합가 (신원료 + 재생원료)
@@ -359,5 +312,6 @@ if menu == "📦 상품 리스트 관리":
     if st.button("💾 상품 정보 업데이트"):
         st.session_state.products_2026 = edited_products
         st.success("상품 리스트가 성공적으로 업데이트되었습니다!")
+
 
 
