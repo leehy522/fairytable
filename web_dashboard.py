@@ -226,5 +226,48 @@ if menu == "🏭 원가 시뮬레이터":
             st.warning(f"💡 역산된 비닐 두께: **{res_thick:.4f} mm**")
             st.caption("※ 소수점 4자리까지 정밀 표시됩니다. 실제 발주 규격과 비교해 보세요.")
 
+# --- [원재료 단가 및 혼합 로직] ---
+def calculate_material_cost(v_price, r_price, v_ratio, c_price, c_ratio):
+    # 1. 기초 원료 혼합가 (신원료 + 재생원료)
+    # 혼합 비율 합은 100%로 가정 (예: 신원료 70% + 재생원료 30%)
+    base_mix_price = (v_price * (v_ratio / 100)) + (r_price * ((100 - v_ratio) / 100))
+    
+    # 2. 조색제 추가 비용 (전체 무게의 c_ratio % 만큼 추가)
+    # 보통 조색제는 전체 혼합물에 일정 비율(2% 등)로 섞임
+    final_unit_price = (base_mix_price * (1 - c_ratio/100)) + (c_price * (c_ratio/100))
+    return final_unit_price
+
+if menu == "🏭 원가 시뮬레이터":
+    st.divider()
+    st.subheader("🧪 원재료 혼합 단가 계산기")
+    st.write("원료와 조색제의 혼합 비율에 따른 최종 1kg당 단가를 계산합니다.")
+
+    # 입력창 1: 원료 가격 설정
+    col1, col2 = st.columns(2)
+    with col1:
+        virgin_price = st.number_input("신원료 가격 (원/kg)", value=1530)
+        recycled_price = st.number_input("재생원료 가격 (원/kg)", value=1100)
+    with col2:
+        # 슬라이더로 비율 조절
+        virgin_ratio = st.slider("신원료 혼합 비율 (%)", 0, 100, 100)
+        st.caption(f"신원료 {virgin_ratio}% : 재생원료 {100-virgin_ratio}%")
+
+    # 입력창 2: 조색제 설정
+    st.write("---")
+    col3, col4 = st.columns(2)
+    with col3:
+        colorant_price = st.number_input("조색제 가격 (원/kg)", value=2900)
+    with col4:
+        colorant_ratio = st.number_input("조색제 혼합 비율 (%)", value=2.0, step=0.1)
+
+    # 최종 단가 산출
+    final_price = calculate_material_cost(virgin_price, recycled_price, virgin_ratio, colorant_price, colorant_ratio)
+    
+    st.metric("최종 원단 제조 원가", f"₩{final_price:,.2f} / kg")
+    
+    # 💡 이전 '무게 계산기'와 연동하여 롤당 가격 표시
+    if 'res_weight' in locals() and res_weight > 0:
+        roll_cost = final_price * res_weight
+        st.success(f"📦 현재 규격(무게 {res_weight:.2f}kg) 1롤당 원료비: **₩{roll_cost:,.0f}**")
 
 
