@@ -74,7 +74,7 @@ st.set_page_config(page_title="요정비닐 스마트 시스템", layout="wide")
 
 # 사이드바 메뉴 설정
 st.set_page_config(page_title="요정비닐 관리 시스템", layout="wide")
-menu = st.sidebar.radio("메뉴", ["💰 종합 매출 분석/수정", "📈 시장 지표 분석", "🚚 밀크런 PPT 변환", "📦 택배 송장 변환"])
+menu = st.sidebar.radio("메뉴", ["📈 시장 지표 분석", "🚚 밀크런 PPT 변환", "📦 택배 송장 변환", "🏭 원가 시뮬레이터"])
 
 # --- 메뉴 1: 시장 지표 분석 ---
 if menu == "📈 시장 지표 분석":
@@ -188,56 +188,35 @@ if menu == "📦 택배 송장 변환":
             except Exception as e:
                 st.error(f"❌ 변환 실패: {e}")
 
-# --- [초기 데이터 설정] ---
-if 'sales_df' not in st.session_state:
-    raw_data = [
-        {"월": "24-01", "매출액": 42560000, "최종정산액": 35240000, "성장장려금": 4256000},
-        {"월": "24-02", "매출액": 38920000, "최종정산액": 32150000, "성장장려금": 3892000},
-        {"월": "24-03", "매출액": 45120000, "최종정산액": 37800000, "성장장려금": 4512000},
-        {"월": "24-04", "매출액": 41200000, "최종정산액": 34100000, "성장장려금": 4120000},
-        {"월": "24-05", "매출액": 48750000, "최종정산액": 40500000, "성장장려금": 4875000},
-        {"월": "24-06", "매출액": 52100000, "최종정산액": 43200000, "성장장려금": 5210000},
-    ]
-    st.session_state.sales_df = pd.DataFrame(raw_data)
+# --- [비닐 원단 규격 계산 로직] ---
+# 윤겸님이 알려주신 공식: (폭) * (길이) * 2 * 92 * (두께) = (무게)
+def calculate_vinyl_weight(width_mm, length_m, thickness_mm):
+    # 단위를 미터(m)와 밀리미터(mm)로 조정하여 계산
+    # 공식 내 '92'는 비닐의 밀도(LDPE/HDPE 계수)와 관련된 고정 상수로 보입니다.
+    width_m = width_mm / 1000
+    weight = width_m * length_m * 2 * 92 * thickness_mm
+    return weight
 
-# --- [메인 대시보드] ---
-if menu == "💰 종합 매출 분석/수정":
-    st.title("💰 요정비닐 매출 데이터 편집기")
-    st.info("표의 숫자를 클릭하여 직접 수정할 수 있습니다. 수정 후 그래프에 즉시 반영됩니다.")
+# 메뉴에 '규격/무게 계산기' 추가
+if menu == "🏭 원가 시뮬레이터":
+    st.divider()
+    st.subheader("📏 원단 규격별 무게 계산기")
+    st.write("비닐 규격을 입력하면 예상 원단 무게(kg)를 산출합니다.")
 
-    # 1. 데이터 편집기 (st.data_editor 사용)
-    edited_df = st.data_editor(
-        st.session_state.sales_df,
-        num_rows="dynamic", # 행 추가/삭제 가능
-        use_container_width=True,
-        column_config={
-            "매출액": st.column_config.NumberColumn(format="₩%d"),
-            "최종정산액": st.column_config.NumberColumn(format="₩%d"),
-            "성장장려금": st.column_config.NumberColumn(format="₩%d"),
-        }
-    )
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        v_width = st.number_input("비닐 폭 (mm)", value=300, step=10)
+    with c2:
+        v_length = st.number_input("원단 총 길이 (m)", value=500, step=50)
+    with c3:
+        v_thick = st.number_input("비닐 두께 (mm)", value=0.05, step=0.01, format="%.3f")
 
-    # 수정된 데이터 저장
-    if st.button("💾 변경사항 적용하기"):
-        st.session_state.sales_df = edited_df
-        st.success("데이터가 업데이트되었습니다!")
-
-    # 2. 업데이트된 데이터로 지표 계산
-    df = st.session_state.sales_df
-    total_rev = df['매출액'].sum()
-    total_settle = df['최종정산액'].sum()
+    # 공식 적용
+    final_weight = calculate_vinyl_weight(v_width, v_length, v_thick)
     
-    c1, c2 = st.columns(2)
-    c1.metric("총 누적 매출액", f"₩{total_rev:,.0f}")
-    c2.metric("총 실정산액", f"₩{total_settle:,.0f}")
-
-    # 3. 시각화 그래프
-    st.subheader("📊 수정된 데이터 기반 매출 추이")
-    fig, ax = plt.subplots(figsize=(10, 4))
-    ax.plot(df['월'], df['매출액'], label='매출액', marker='o', color='#1f77b4')
-    ax.plot(df['월'], df['최종정산액'], label='정산액', marker='s', color='#ff7f0e')
-    plt.xticks(rotation=45)
-    plt.grid(True, alpha=0.3)
-    plt.legend()
-    st.pyplot(fig)
-
+    st.info(f"💡 예상 원단 무게: **{final_weight:.2f} kg**")
+    
+    # 원가 시뮬레이터와 연동
+    if 'estimated_cost_per_kg' in locals():
+        total_material_cost = final_weight * estimated_cost_per_kg
+        st.success(f"💰 해당 롤(Roll)당 예상 원가: **₩{total_material_cost:,.0f}**")
