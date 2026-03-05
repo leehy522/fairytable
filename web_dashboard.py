@@ -199,10 +199,6 @@ if 'sales_df' not in st.session_state:
     ]
     st.session_state.sales_df = pd.DataFrame(raw_data)
 
-# --- [메인 대시보드] ---
-st.set_page_config(page_title="요정비닐 관리 시스템", layout="wide")
-menu = st.sidebar.radio("메뉴", ["💰 종합 매출 분석/수정", "📈 시장 지표", "🚚 밀크런", "📦 택배"])
-
 if menu == "💰 종합 매출 분석/수정":
     st.title("💰 요정비닐 매출 데이터 편집기")
     st.info("표의 숫자를 클릭하여 직접 수정할 수 있습니다. 수정 후 그래프에 즉시 반영됩니다.")
@@ -242,3 +238,4 @@ if menu == "💰 종합 매출 분석/수정":
     plt.grid(True, alpha=0.3)
     plt.legend()
     st.pyplot(fig)
+
