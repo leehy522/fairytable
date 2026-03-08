@@ -297,7 +297,7 @@ def load_inventory():
         return pd.DataFrame()
 
 # --- 화면 출력 로직 ---
-st.title("🏷️ 요정비닐 상품 현황 (실시간 연동)")
+st.title("🏷️ 요정비닐 상품 현황")
 df = load_inventory()
 
 if not df.empty:
@@ -305,4 +305,5 @@ if not df.empty:
     st.dataframe(df, use_container_width=True)
 else:
     st.warning("데이터를 불러오지 못했습니다. 엑셀 파일 내 '상품명' 제목이 있는지 확인해 주세요.")
+
 
