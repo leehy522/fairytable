@@ -281,7 +281,7 @@ import requests
 @st.cache_data(ttl=60)
 def load_simple_inventory():
     # 💡 윤겸님의 진짜 직통 주소
-    EXCEL_URL = "https://onedrive.live.com/download?resid=40F78A9D17F33324!s8899948b6b8c45babf6b75bda192b190"
+    EXCEL_URL = "https://1drv.ms/x/c/40f78a9d17f33324/IQCLlJmIjGu6Rb9rdb2hkrGQAZ6-3fg8OZo5gmFS61q7LeE?e=oYijkx&nav=MTVfezI2MkY3QTJGLTc1MkItNDQzNS1CNEUyLUM4M0NBRTZGOTgxOH0"
     try:
         response = requests.get(EXCEL_URL)
         f = io.BytesIO(response.content)
@@ -315,6 +315,7 @@ if menu == "🏷️ 요정비닐 상품 현황":
         st.dataframe(display_df, use_container_width=True)
     else:
         st.warning("데이터를 불러올 수 없습니다. 원드라이브 연결 상태를 확인해 주세요.")
+
 
 
 
