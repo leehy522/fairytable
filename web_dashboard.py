@@ -75,7 +75,7 @@ st.set_page_config(page_title="요정비닐 스마트 시스템", layout="wide")
 
 # 사이드바 메뉴 설정
 st.set_page_config(page_title="요정비닐 관리 시스템", layout="wide")
-menu = st.sidebar.radio("메뉴", ["🏭 실시간 수익 분석", "🚚 밀크런 PPT 변환", "📦 택배 송장 변환", "🏭 원가 시뮬레이터", "📈 시장 지표 분석"])
+menu = st.sidebar.radio("메뉴", ["🚚 밀크런 PPT 변환", "📦 택배 송장 변환", "🏭 원가 시뮬레이터", "📈 시장 지표 분석"])
 
 # --- 메뉴 1: 시장 지표 분석 ---
 if menu == "📈 시장 지표 분석":
@@ -270,4 +270,5 @@ if menu == "🏭 원가 시뮬레이터":
     if 'res_weight' in locals() and res_weight > 0:
         roll_cost = final_price * res_weight
         st.success(f"📦 현재 규격(무게 {res_weight:.2f}kg) 1롤당 원료비: **₩{roll_cost:,.0f}**")
+
 
