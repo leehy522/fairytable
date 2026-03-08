@@ -10,7 +10,6 @@ from pptx import Presentation
 from pptx.util import Pt
 from datetime import datetime
 import os
-from data_library import PRODUCT_DB # 💡 데이터 파일 불러오기
 import requests
 
 # --- [공통 로직: 밀크런 관련 함수] ---
@@ -315,6 +314,7 @@ if menu == "🏷️ 요정비닐 상품 현황":
         st.dataframe(display_df, use_container_width=True)
     else:
         st.warning("데이터를 불러올 수 없습니다. 원드라이브 연결 상태를 확인해 주세요.")
+
 
 
 
