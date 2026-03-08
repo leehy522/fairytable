@@ -11,6 +11,7 @@ from pptx.util import Pt
 from datetime import datetime
 import os
 from data_library import PRODUCT_DB # 💡 데이터 파일 불러오기
+import requests
 
 # --- [공통 로직: 밀크런 관련 함수] ---
 def get_pallet_capacity(sku):
@@ -311,6 +312,7 @@ if not inventory_df.empty:
     st.write(f"총 **{len(inventory_df)}**개의 상품이 등록되어 있습니다.")
 else:
     st.warning("데이터를 불러올 수 없습니다. 원드라이브 주소나 엑셀 파일 내 '상품명' 제목을 확인해 주세요.")
+
 
 
 
