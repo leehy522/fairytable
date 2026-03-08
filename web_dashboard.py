@@ -311,40 +311,11 @@ if not df.empty:
 else:
     st.warning("데이터를 불러오지 못했습니다. 구글 시트 내 '상품명' 열이 있는지 확인해 주세요.")
 
-# --- [2. 카테고리 화면 구성] ---
-def show_product_status():
-    st.title("🏷️ 요정비닐 상품 실시간 현황")
-    st.write(f"마지막 업데이트: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    
-    df = load_inventory_data()
-
-    if not df.empty:
-        # 상단 요약 지표 (Metric)
-        c1, c2, c3 = st.columns(3)
-        c1.metric("총 등록 상품", f"{len(df)}종")
-        
-        # 검색 및 필터 (타이핑 최소화)
-        search = st.text_input("🔍 찾으시는 상품명을 입력하세요", placeholder="예: 배달봉투, 검정비닐...")
-        
-        if search:
-            display_df = df[df['상품명'].str.contains(search, na=False)]
-        else:
-            display_df = df
-
-        # 데이터 테이블 출력
-        st.subheader("📦 전체 상품 리스트")
-        st.info("💡 내 컴퓨터에서 엑셀을 저장하고 1분 뒤 새로고침하면 자동 반영됩니다.")
-        
-        # 표 형식 최적화 (불필요한 인덱스 제거 및 너비 맞춤)
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
-        
-    else:
-        st.warning("데이터를 불러올 수 없습니다. 원드라이브 공유 설정이나 엑셀의 '상품명' 제목을 확인해 주세요.")
-
 # --- [3. 메뉴 통합] ---
 # 기존 사이드바 코드에 아래와 같이 연결하세요.
 if menu == "🏷️ 요정비닐 상품 현황":
     show_product_status()
+
 
 
 
