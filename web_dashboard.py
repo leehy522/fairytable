@@ -276,7 +276,7 @@ if menu == "🏭 원가 시뮬레이터":
 @st.cache_data(ttl=60)
 def load_inventory_data():
     # 💡 윤겸님의 진짜 직통 주소 (resid 방식)
-    EXCEL_URL = "https://onedrive.live.com/download?resid=40F78A9D17F33324!IQSLlJmIjGu6Rb9rdb2hkrGQATgOTd-7rgMJILcIXaa6TDU"
+    EXCEL_URL = "https://onedrive.live.com/download?resid=40F78A9D17F33324!IQRh05wjSryhQrPOjq98hknmAZfcXgViW9hWakhH7SrQGkI"
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
         response = requests.get(EXCEL_URL, headers=headers)
@@ -326,6 +326,7 @@ def show_product_status():
 # 기존 사이드바 코드에 아래와 같이 연결하세요.
 if menu == "🏷️ 요정비닐 상품 현황":
     show_product_status()
+
 
 
 
