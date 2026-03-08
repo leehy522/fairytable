@@ -293,10 +293,6 @@ def load_simple_inventory():
         st.error(f"데이터 로딩 중 오류 발생: {e}")
         return pd.DataFrame()
 
-# --- [사이드바 메뉴 구성] ---
-# 기존 메뉴 리스트에 "요정비닐 상품 현황"을 추가합니다.
-menu = st.sidebar.radio("메뉴", ["🚚 밀크런 PPT 변환", "📦 택배 송장 변환", "🏭 원가 시뮬레이터", "📈 시장 지표 분석", "🏷️ 요정비닐 상품 현황"])
-
 # --- [메뉴: 요정비닐 상품 현황] ---
 if menu == "🏷️ 요정비닐 상품 현황":
     st.title("🏷️ 요정비닐 실시간 상품 현황")
@@ -317,6 +313,7 @@ if menu == "🏷️ 요정비닐 상품 현황":
         st.dataframe(display_df, use_container_width=True)
     else:
         st.warning("데이터를 불러올 수 없습니다. 원드라이브 연결 상태를 확인해 주세요.")
+
 
 
 
