@@ -203,14 +203,14 @@ if menu == "🏭 원가 시뮬레이터":
     c1, c2, c3 = st.columns(3)
     
     with c1:
-        v_width = st.number_input("비닐 폭 (mm)", value=300, step=10)
+        v_width = st.number_input("비닐 폭 (mm)", value=630, step=10)
         width_m = v_width / 1000
     with c2:
-        v_length = st.number_input("원단 총 길이 (m)", value=500, step=50)
+        v_length = st.number_input("원단 총 길이 (m)", value=1800, step=50)
 
     if calc_mode == "⚖️ 무게 산출 (발주용)":
         with c3:
-            v_thick = st.number_input("비닐 두께 (mm)", value=0.05, step=0.005, format="%.3f")
+            v_thick = st.number_input("비닐 두께 (mm)", value=0.009, step=0.005, format="%.3f")
         
         # 무게 계산
         res_weight = width_m * v_length * 2 * 0.92 * v_thick
@@ -301,6 +301,7 @@ elif menu == "📦 상품 DB 조회":
     st.title("📦 등록된 상품 정보 (data_library.py)")
     st.write("현재 시스템에 등록된 15개 주력 상품 정보입니다.")
     st.table(pd.DataFrame(PRODUCT_DB))
+
 
 
 
