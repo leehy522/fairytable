@@ -277,7 +277,7 @@ if menu == "🏭 원가 시뮬레이터":
 # 1. 변수 및 설정 관리 (여기만 고치면 됩니다!)
 # ==========================================
 CONFIG = {
-    "EXCEL_URL": "https://1drv.ms/x/c/40f78a9d17f33324/IQCLlJmIjGu6Rb9rdb2hkrGQAZ6-3fg8OZo5gmFS61q7LeE?e=mkLTuX",
+    "EXCEL_URL": "https://1drv.ms/x/c/40f78a9d17f33324/IQSLlJmIjGu6Rb9rdb2hkrGQATgOTd-7rgMJILcIXaa6TDU?download=1",
     "SKIP_ROWS": 1,      # 엑셀 상단에 무시할 줄 수
     "COLUMNS": {         # [엑셀 컬럼명] : [코드에서 쓸 이름]
         "상품명": "name",
@@ -338,6 +338,7 @@ try:
 except Exception as e:
     st.error(f"오류 발생: {e}")
     st.info("CONFIG의 COLUMNS 이름이 엑셀의 제목과 정확히 일치하는지 확인해 주세요.")
+
 
 
 
