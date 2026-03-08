@@ -280,19 +280,21 @@ import requests
 # --- [데이터 로딩 함수] ---
 @st.cache_data(ttl=60)
 def load_simple_inventory():
-    # 💡 윤겸님이 찾아내신 docId 기반 직통 주소
+    # 💡 윤겸님의 진짜 직통 주소
     EXCEL_URL = "https://onedrive.live.com/download?resid=40F78A9D17F33324!s8899948b6b8c45babf6b75bda192b190"
     try:
         response = requests.get(EXCEL_URL)
         f = io.BytesIO(response.content)
-        # 6행부터 데이터 시작 (skiprows=5)
-        df = pd.read_excel(f, skiprows=5, engine='openpyxl')
+        
+        # 💡 2. 엔진 명시 및 3. 줄 건너뛰기 설정 (6행부터 시작이면 5)
+        df = pd.read_excel(f, skiprows=1, engine='openpyxl')
+        
+        # 컬럼명 정리
         df.columns = [str(c).strip() for c in df.columns]
         return df.dropna(subset=['상품명'])
     except Exception as e:
         st.error(f"데이터 로딩 중 오류 발생: {e}")
         return pd.DataFrame()
-
 # --- [메뉴: 요정비닐 상품 현황] ---
 if menu == "🏷️ 요정비닐 상품 현황":
     st.title("🏷️ 요정비닐 실시간 상품 현황")
@@ -313,6 +315,7 @@ if menu == "🏷️ 요정비닐 상품 현황":
         st.dataframe(display_df, use_container_width=True)
     else:
         st.warning("데이터를 불러올 수 없습니다. 원드라이브 연결 상태를 확인해 주세요.")
+
 
 
 
