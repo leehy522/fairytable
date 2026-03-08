@@ -272,53 +272,29 @@ if menu == "🏭 원가 시뮬레이터":
         st.success(f"📦 현재 규격(무게 {res_weight:.2f}kg) 1롤당 원료비: **₩{roll_cost:,.0f}**")
 
 
-# --- [공통 계산 로직] ---
-def get_analysis_df(material_price):
-    df = pd.DataFrame(PRODUCT_DB)
-    # 윤겸님 공식: (폭/1000)*(길이/1000)*2*92*두께 = 무게(kg)
-    df['개당 무게(kg)'] = (df['폭']/1000) * (df['길이']/1000) * 2 * 92 * df['두께']
-    df['예상 원가'] = df['개당 무게(kg)'] * material_price
-    df['예상 수익'] = df['판매가'] - df['예상 원가']
-    df['마진율(%)'] = (df['예상 수익'] / df['판매가']) * 100
-    return df
+import streamlit as st
+import pandas as pd
 
+# 💡 윤겸님의 엑셀 직통 링크 적용
+EXCEL_URL = "https://1drv.ms/x/c/40f78a9d17f33324/IQSLlJmIjGu6Rb9rdb2hkrGQATgOTd-7rgMJILcIXaa6TDU?download=1"
 
-if menu == "🏭 실시간 수익 분석":
-    st.title("🏭 요정비닐 실시간 마진 시뮬레이터")
+@st.cache_data(ttl=60) # 1분마다 엑셀의 변경사항을 체크 (재활 중엔 천천히 보세요!)
+def load_excel_data():
+    # 엑셀 파일 읽기 (openpyxl 엔진 사용 추천)
+    return pd.read_excel(EXCEL_URL)
+
+st.title("🏭 요정비닐 엑셀 동기화 대시보드")
+
+try:
+    df = load_excel_data()
     
-    # 원단 단가 입력 (유가/환율 변동 반영용)
-    m_price = st.number_input("현재 원단 kg당 단가 (원)", value=1850, step=10)
+    # 윤겸님의 공식 적용: (폭/100)*(길이/100)*2*92*두께*매수
+    # 엑셀의 컬럼명이 '폭', '길이', '두께', '매수'여야 합니다.
+    df['무게(kg)'] = (df['폭']/100) * (df['길이']/100) * 2 * 92 * df['두께'] * df['매수']
     
-    df_analyzed = get_analysis_df(m_price)
-    
-    # 핵심 지표 시각화
-    st.subheader("📊 상품별 마진 현황 (폭/길이/두께 기반)")
-    st.dataframe(df_analyzed[['상품명', '판매가', '예상 원가', '예상 수익', '마진율(%)']].style.format({
-        '판매가': '₩{:,.0f}', '예상 원가': '₩{:,.1f}', '예상 수익': '₩{:,.0f}', '마진율(%)': '{:.1f}%'
-    }).background_gradient(subset=['마진율(%)'], cmap='RdYlGn'))
+    st.subheader("📦 실시간 상품 원가 현황")
+    st.dataframe(df[['상품명', '판매가', '무게(kg)']].style.format({'무게(kg)': '{:.3f}kg'}))
 
-elif menu == "📦 상품 DB 조회":
-    st.title("📦 등록된 상품 정보 (data_library.py)")
-    st.write("현재 시스템에 등록된 15개 주력 상품 정보입니다.")
-    st.table(pd.DataFrame(PRODUCT_DB))
-
-# web_dashboard.py 에 추가할 실전 계산 로직
-
-def calculate_product_cost(width_cm, thickness_mm, count, length_cm, material_price):
-    # 1. 단위를 m로 변환
-    w_m = width_cm / 100
-    l_m = length_cm / 100
-    
-    # 2. 한 장의 무게 (kg) 계산
-    single_weight = w_m * l_m * 2 * 92 * thickness_mm
-    
-    # 3. 전체 무게 및 원가
-    total_weight = single_weight * count
-    total_cost = total_weight * material_price
-    
-    return single_weight, total_weight, total_cost
-
-
-
-
-
+except Exception as e:
+    st.error(f"엑셀 데이터를 불러오는 중 오류가 발생했습니다: {e}")
+    st.info("엑셀 파일의 첫 번째 줄(제목)이 '폭', '길이', '두께', '매수'로 되어 있는지 확인해 주세요.")
