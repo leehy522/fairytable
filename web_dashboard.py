@@ -272,25 +272,44 @@ if menu == "🏭 원가 시뮬레이터":
         st.success(f"📦 현재 규격(무게 {res_weight:.2f}kg) 1롤당 원료비: **₩{roll_cost:,.0f}**")
 
 
-# --- [1. 데이터 로딩 설정] ---
-@st.cache_data(ttl=60)
-def load_inventory_data():
-    # 💡 윤겸님의 진짜 직통 주소 (resid 방식)
-    EXCEL_URL = "https://onedrive.live.com/download?resid=40F78A9D17F33324!IQSLlJmIjGu6Rb9rdb2hkrGQATgOTd-7rgMJILcIXaa6TDU"
+# 💡 구글 시트의 '웹에 게시' 기능을 활용한 CSV 직통 주소입니다.
+# 알려주신 주소 끝의 pubhtml을 pub?output=csv로 변경했습니다.
+CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTVvCbm9KEoUrqvlXSyIyLHmstIGZuiuTMLYDBnmgnxInrfoMelDXFSWogUdHUfNALb7uC_nBAIyzif/pub?output=csv"
+
+@st.cache_data(ttl=60) # 1분마다 구글 시트의 업데이트 내용을 확인합니다.
+def load_google_sheet_data():
     try:
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        response = requests.get(EXCEL_URL, headers=headers)
-        f = io.BytesIO(response.content)
+        # 구글 시트는 CSV 형식을 지원하므로 원드라이브보다 훨씬 빠르고 안정적입니다.
+        df = pd.read_csv(CSV_URL)
         
-        # 엑셀의 6행부터 데이터 시작 (skiprows=5)
-        df = pd.read_excel(f, skiprows=5, engine='openpyxl')
-        
-        # 컬럼명 정리 및 빈 행 제거
+        # 컬럼명 정리 및 '상품명' 기준 빈 데이터 제거
         df.columns = [str(c).strip() for c in df.columns]
+        
+        # 만약 엑셀처럼 위쪽에 빈 줄이 있다면 아래 주석을 풀고 숫자를 조절하세요.
+        # df = pd.read_csv(CSV_URL, skiprows=5) 
+        
         return df.dropna(subset=['상품명'])
     except Exception as e:
-        st.error(f"데이터 연결 중 오류: {e}")
+        st.error(f"데이터 연결 중 오류가 발생했습니다: {e}")
         return pd.DataFrame()
+
+# --- 화면 출력 구성 ---
+st.title("🏷️ 요정비닐 상품 실시간 현황")
+st.info("구글 시트에서 내용을 수정하면 웹 대시보드에 즉시 반영됩니다.")
+
+df = load_google_sheet_data()
+
+if not df.empty:
+    st.success("✅ 구글 스프레드시트 연결 성공!")
+    # 표 출력 (검색 기능 포함)
+    search_query = st.text_input("🔍 상품명 검색", placeholder="찾으시는 상품명을 입력하세요.")
+    
+    if search_query:
+        df = df[df['상품명'].str.contains(search_query, na=False)]
+        
+    st.dataframe(df, use_container_width=True, hide_index=True)
+else:
+    st.warning("데이터를 불러오지 못했습니다. 구글 시트 내 '상품명' 열이 있는지 확인해 주세요.")
 
 # --- [2. 카테고리 화면 구성] ---
 def show_product_status():
@@ -326,6 +345,7 @@ def show_product_status():
 # 기존 사이드바 코드에 아래와 같이 연결하세요.
 if menu == "🏷️ 요정비닐 상품 현황":
     show_product_status()
+
 
 
 
