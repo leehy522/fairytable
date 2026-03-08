@@ -272,28 +272,27 @@ if menu == "🏭 원가 시뮬레이터":
         roll_cost = final_price * res_weight
         st.success(f"📦 현재 규격(무게 {res_weight:.2f}kg) 1롤당 원료비: **₩{roll_cost:,.0f}**")
 
+if menu == "요정비닐 재고 현황":
+
 # --- [1. 원드라이브 직통 주소 설정] ---
-# 💡 윤겸님이 찾아내신 docId 기반의 직통 주소입니다.
 EXCEL_URL = "https://onedrive.live.com/download?resid=40F78A9D17F33324!s8899948b6b8c45babf6b75bda192b190"
 
-@st.cache_data(ttl=60) # 1분마다 최신 데이터를 가져옵니다.
+@st.cache_data(ttl=60)
 def load_simple_inventory():
     try:
+        # 이제 'requests'를 정의했으므로 오류 없이 실행됩니다.
         response = requests.get(EXCEL_URL)
         f = io.BytesIO(response.content)
         
-        # 💡 skiprows=5: 엑셀 상단 5줄을 무시하고 6행부터 읽습니다. 
-        # 만약 데이터가 더 위나 아래에 있다면 이 숫자를 고치세요.
-        df = pd.read_excel(f, skiprows=1, engine='openpyxl')
-        
-        # 컬럼명 양끝 공백 제거 (엑셀 오타 방지용)
+        df = pd.read_excel(f, skiprows=5, engine='openpyxl')
         df.columns = [str(c).strip() for c in df.columns]
         
-        return df.dropna(subset=['상품명']) # '상품명' 칸이 비어있는 줄은 버립니다.
+        return df.dropna(subset=['상품명'])
     except Exception as e:
         st.error(f"데이터 로딩 중 오류 발생: {e}")
         return pd.DataFrame()
 
+ 
 # --- [2. 화면 출력] ---
 st.set_page_config(page_title="요정비닐 재고 현황", layout="wide")
 st.title("📦 inventory.xlsx 실시간 상품 리스트")
@@ -312,6 +311,7 @@ if not inventory_df.empty:
     st.write(f"총 **{len(inventory_df)}**개의 상품이 등록되어 있습니다.")
 else:
     st.warning("데이터를 불러올 수 없습니다. 원드라이브 주소나 엑셀 파일 내 '상품명' 제목을 확인해 주세요.")
+
 
 
 
