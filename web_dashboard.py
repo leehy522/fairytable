@@ -273,55 +273,40 @@ if menu == "🏭 원가 시뮬레이터":
 
 import streamlit as st
 import pandas as pd
-import io
 import requests
+import io
 
-# --- [데이터 로딩 함수] ---
+# 💡 이 주소가 파이썬이 엑셀 데이터만 쏙 빼올 수 있는 '직통 주소'입니다.
+EXCEL_URL = "https://onedrive.live.com/download?resid=40F78A9D17F33324!s8899948b6b8c45babf6b75bda192b190"
+
 @st.cache_data(ttl=60)
-def load_simple_inventory():
-    # 💡 윤겸님의 진짜 직통 주소
-    EXCEL_URL = "https://1drv.ms/x/c/40f78a9d17f33324/IQCLlJmIjGu6Rb9rdb2hkrGQAZ6-3fg8OZo5gmFS61q7LeE?e=oYijkx&nav=MTVfezI2MkY3QTJGLTc1MkItNDQzNS1CNEUyLUM4M0NBRTZGOTgxOH0"
+def load_inventory():
     try:
-        response = requests.get(EXCEL_URL)
+        # 브라우저인 것처럼 속여서 접근해야 차단되지 않습니다.
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(EXCEL_URL, headers=headers)
+        
+        # 가져온 데이터가 진짜 엑셀인지 확인하기 위해 메모리에 담습니다.
         f = io.BytesIO(response.content)
         
-        # 💡 2. 엔진 명시 및 3. 줄 건너뛰기 설정 (6행부터 시작이면 5)
-        df = pd.read_excel(f, skiprows=1, engine='openpyxl')
+        # 💡 엑셀 엔진(openpyxl)을 명시하고, 제목 줄 앞의 빈칸을 건너뜁니다.
+        # 만약 엑셀의 6행부터 데이터가 있다면 skiprows=5로 설정하세요.
+        df = pd.read_excel(f, skiprows=5, engine='openpyxl')
         
-        # 컬럼명 정리
+        # 컬럼명 정리 및 '상품명' 기준 빈 데이터 제거
         df.columns = [str(c).strip() for c in df.columns]
         return df.dropna(subset=['상품명'])
+        
     except Exception as e:
         st.error(f"데이터 로딩 중 오류 발생: {e}")
         return pd.DataFrame()
-# --- [메뉴: 요정비닐 상품 현황] ---
-if menu == "🏷️ 요정비닐 상품 현황":
-    st.title("🏷️ 요정비닐 실시간 상품 현황")
-    st.info("내 컴퓨터에서 inventory.xlsx를 저장하면 1분 뒤 자동 반영됩니다.")
 
-    inventory_df = load_simple_inventory()
+# --- 화면 출력 로직 ---
+st.title("🏷️ 요정비닐 상품 현황 (실시간 연동)")
+df = load_inventory()
 
-    if not inventory_df.empty:
-        # 검색 기능 추가 (손가락 타이핑을 최소화하는 필터)
-        search_term = st.text_input("🔍 상품명 검색", "")
-        
-        if search_term:
-            display_df = inventory_df[inventory_df['상품명'].str.contains(search_term, na=False)]
-        else:
-            display_df = inventory_df
-
-        st.subheader(f"📦 등록 상품 목록 (총 {len(display_df)}건)")
-        st.dataframe(display_df, use_container_width=True)
-    else:
-        st.warning("데이터를 불러올 수 없습니다. 원드라이브 연결 상태를 확인해 주세요.")
-
-
-
-
-
-
-
-
-
-
-
+if not df.empty:
+    st.success("✅ 원드라이브 연결 성공!")
+    st.dataframe(df, use_container_width=True)
+else:
+    st.warning("데이터를 불러오지 못했습니다. 엑셀 파일 내 '상품명' 제목이 있는지 확인해 주세요.")
