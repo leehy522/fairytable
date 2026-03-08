@@ -75,7 +75,7 @@ st.set_page_config(page_title="요정비닐 스마트 시스템", layout="wide")
 
 # 사이드바 메뉴 설정
 st.set_page_config(page_title="요정비닐 관리 시스템", layout="wide")
-menu = st.sidebar.radio("메뉴", ["🚚 밀크런 PPT 변환", "📦 택배 송장 변환", "🏭 원가 시뮬레이터", "📈 시장 지표 분석"])
+menu = st.sidebar.radio("메뉴", ["🏭 요정비닐 실시간 통합 관리자","🚚 밀크런 PPT 변환", "📦 택배 송장 변환", "🏭 원가 시뮬레이터", "📈 시장 지표 분석"])
 
 # --- 메뉴 1: 시장 지표 분석 ---
 if menu == "📈 시장 지표 분석":
@@ -334,4 +334,5 @@ if not df.empty:
 
 else:
     st.warning("엑셀 데이터를 불러오지 못했습니다. 주소와 공유 권한을 확인해 주세요.")
+
 
