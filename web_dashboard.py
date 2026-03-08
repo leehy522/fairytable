@@ -75,7 +75,7 @@ st.set_page_config(page_title="요정비닐 스마트 시스템", layout="wide")
 
 # 사이드바 메뉴 설정
 st.set_page_config(page_title="요정비닐 관리 시스템", layout="wide")
-menu = st.sidebar.radio("메뉴", ["📦 상품 리스트 관리", "🚚 밀크런 PPT 변환", "📦 택배 송장 변환", "🏭 원가 시뮬레이터", "📈 시장 지표 분석"])
+menu = st.sidebar.radio("메뉴", ["🏭 실시간 수익 분석", "🚚 밀크런 PPT 변환", "📦 택배 송장 변환", "🏭 원가 시뮬레이터", "📈 시장 지표 분석"])
 
 # --- 메뉴 1: 시장 지표 분석 ---
 if menu == "📈 시장 지표 분석":
@@ -301,5 +301,6 @@ elif menu == "📦 상품 DB 조회":
     st.title("📦 등록된 상품 정보 (data_library.py)")
     st.write("현재 시스템에 등록된 15개 주력 상품 정보입니다.")
     st.table(pd.DataFrame(PRODUCT_DB))
+
 
 
