@@ -271,13 +271,8 @@ if menu == "🏭 원가 시뮬레이터":
         roll_cost = final_price * res_weight
         st.success(f"📦 현재 규격(무게 {res_weight:.2f}kg) 1롤당 원료비: **₩{roll_cost:,.0f}**")
 
-import streamlit as st
-import pandas as pd
-import requests
-import io
-
 # 💡 이 주소가 파이썬이 엑셀 데이터만 쏙 빼올 수 있는 '직통 주소'입니다.
-EXCEL_URL = "https://onedrive.live.com/download?resid=40F78A9D17F33324!s8899948b6b8c45babf6b75bda192b190"
+EXCEL_URL = "https://onedrive.live.com/edit?cid=40f78a9d17f33324&id=40F78A9D17F33324!s8899948b6b8c45babf6b75bda192b190&resid=40F78A9D17F33324!s8899948b6b8c45babf6b75bda192b190&ithint=file%2Cxlsx&embed=1&wdAllowInteractivity=False&wdHideGridlines=True&wdHideHeaders=True&wdDownloadButton=True&wdInConfigurator=True%2CTrue&migratedtospo=true&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy80MGY3OGE5ZDE3ZjMzMzI0L0lRU0xsSm1Jakd1NlJiOXJkYjJoa3JHUUFUZ09UZC03cmdNSklMY0lYYWE2VERVP3dkQWxsb3dJbnRlcmFjdGl2aXR5PUZhbHNlJndkSGlkZUdyaWRsaW5lcz1UcnVlJndkSGlkZUhlYWRlcnM9VHJ1ZSZ3ZERvd25sb2FkQnV0dG9uPVRydWUmd2RJbkNvbmZpZ3VyYXRvcj1UcnVlJndkSW5Db25maWd1cmF0b3I9VHJ1ZQ&wdo=2"
 
 @st.cache_data(ttl=60)
 def load_inventory():
@@ -310,3 +305,4 @@ if not df.empty:
     st.dataframe(df, use_container_width=True)
 else:
     st.warning("데이터를 불러오지 못했습니다. 엑셀 파일 내 '상품명' 제목이 있는지 확인해 주세요.")
+
