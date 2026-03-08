@@ -318,30 +318,6 @@ def calculate_product_cost(width_cm, thickness_mm, count, length_cm, material_pr
     
     return single_weight, total_weight, total_cost
 
-# --- UI 부분 ---
-st.subheader("🔍 제품별 상세 원가 분석")
-col1, col2 = st.columns(2)
-
-with col1:
-    # 63cm, 0.009mm, 200매 고정값 세팅
-    p_width = 63
-    p_thick = 0.009
-    p_count = 200
-    p_length = st.number_input("비닐 한 장의 길이 (cm)", value=90) # 예: 90cm
-    
-with col2:
-    # data_library.py 또는 엑셀에서 가져온 원단 단가
-    m_price = st.number_input("원단 kg당 단가 (원)", value=1588) 
-
-s_weight, t_weight, t_cost = calculate_product_cost(p_width, p_thick, p_count, p_length, m_price)
-
-st.info(f"""
-💡 **계산 결과**
-- 한 장 무게: **{s_weight * 1000:.2f} g**
-- 200매 총 무게: **{t_weight:.2f} kg**
-- **제품 원재료비: ₩{t_cost:,.0f}** (VAT 별도)
-""")
-
 
 
 
