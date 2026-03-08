@@ -10,6 +10,7 @@ from pptx import Presentation
 from pptx.util import Pt
 from datetime import datetime
 import os
+from data_library import PRODUCT_DB # 💡 데이터 파일 불러오기
 
 # --- [공통 로직: 밀크런 관련 함수] ---
 def get_pallet_capacity(sku):
@@ -270,8 +271,35 @@ if menu == "🏭 원가 시뮬레이터":
         roll_cost = final_price * res_weight
         st.success(f"📦 현재 규격(무게 {res_weight:.2f}kg) 1롤당 원료비: **₩{roll_cost:,.0f}**")
 
-# web_dashboard.py
-from data_library import PRODUCT_DB
 
+# --- [공통 계산 로직] ---
+def get_analysis_df(material_price):
+    df = pd.DataFrame(PRODUCT_DB)
+    # 윤겸님 공식: (폭/1000)*(길이/1000)*2*92*두께 = 무게(kg)
+    df['개당 무게(kg)'] = (df['폭']/1000) * (df['길이']/1000) * 2 * 92 * df['두께']
+    df['예상 원가'] = df['개당 무게(kg)'] * material_price
+    df['예상 수익'] = df['판매가'] - df['예상 원가']
+    df['마진율(%)'] = (df['예상 수익'] / df['판매가']) * 100
+    return df
+
+
+if menu == "🏭 실시간 수익 분석":
+    st.title("🏭 요정비닐 실시간 마진 시뮬레이터")
+    
+    # 원단 단가 입력 (유가/환율 변동 반영용)
+    m_price = st.number_input("현재 원단 kg당 단가 (원)", value=1850, step=10)
+    
+    df_analyzed = get_analysis_df(m_price)
+    
+    # 핵심 지표 시각화
+    st.subheader("📊 상품별 마진 현황 (폭/길이/두께 기반)")
+    st.dataframe(df_analyzed[['상품명', '판매가', '예상 원가', '예상 수익', '마진율(%)']].style.format({
+        '판매가': '₩{:,.0f}', '예상 원가': '₩{:,.1f}', '예상 수익': '₩{:,.0f}', '마진율(%)': '{:.1f}%'
+    }).background_gradient(subset=['마진율(%)'], cmap='RdYlGn'))
+
+elif menu == "📦 상품 DB 조회":
+    st.title("📦 등록된 상품 정보 (data_library.py)")
+    st.write("현재 시스템에 등록된 15개 주력 상품 정보입니다.")
+    st.table(pd.DataFrame(PRODUCT_DB))
 
 
