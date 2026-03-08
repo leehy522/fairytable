@@ -283,7 +283,6 @@ CONFIG = {
         "길이": "length",
         "두께": "thickness",
         "매수": "count",
-        "판매가": "price"
     }
 }
 
@@ -336,5 +335,6 @@ try:
 except Exception as e:
     st.error(f"오류 발생: {e}")
     st.info("CONFIG의 COLUMNS 이름이 엑셀의 제목과 정확히 일치하는지 확인해 주세요.")
+
 
 
