@@ -271,27 +271,3 @@ if menu == "🏭 원가 시뮬레이터":
         roll_cost = final_price * res_weight
         st.success(f"📦 현재 규격(무게 {res_weight:.2f}kg) 1롤당 원료비: **₩{roll_cost:,.0f}**")
 
-# 💡 위 1번에서 만든 주소를 여기에 넣으세요!
-EXCEL_URL = "https://onedrive.live.com/download?resid=40F78A9D17F33324!s8899948b6b8c45babf6b75bda192b190"
-
-@st.cache_data(ttl=60)
-def load_data():
-    # 💡 pandas가 직접 주소를 치고 들어가게 합니다.
-    return pd.read_excel(EXCEL_URL, skiprows=5, engine='openpyxl')
-
-st.title("🏭 요정비닐 엑셀 동기화 대시보드")
-
-try:
-    df = load_data()
-    st.success("✅ 드디어 연결 성공!")
-    st.dataframe(df.head())
-except Exception as e:
-    st.error(f"❌ 아직 연결이 안 됩니다: {e}")
-    st.info("1. 원드라이브 공유 설정을 '모든 사용자'로 바꿨는지 확인해 주세요.")
-    st.info("2. 브라우저 주소창에 위 링크를 넣었을 때 파일이 바로 다운로드되는지 확인해 보세요.")
-
-
-
-
-
-
