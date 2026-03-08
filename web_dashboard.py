@@ -75,7 +75,7 @@ st.set_page_config(page_title="요정비닐 스마트 시스템", layout="wide")
 
 # 사이드바 메뉴 설정
 st.set_page_config(page_title="요정비닐 관리 시스템", layout="wide")
-menu = st.sidebar.radio("메뉴", ["🏭 요정비닐 실시간 통합 관리자","🚚 밀크런 PPT 변환", "📦 택배 송장 변환", "🏭 원가 시뮬레이터", "📈 시장 지표 분석"])
+menu = st.sidebar.radio("메뉴", ["요정비닐 재고 현황","🚚 밀크런 PPT 변환", "📦 택배 송장 변환", "🏭 원가 시뮬레이터", "📈 시장 지표 분석"])
 
 # --- 메뉴 1: 시장 지표 분석 ---
 if menu == "📈 시장 지표 분석":
@@ -271,6 +271,46 @@ if menu == "🏭 원가 시뮬레이터":
         roll_cost = final_price * res_weight
         st.success(f"📦 현재 규격(무게 {res_weight:.2f}kg) 1롤당 원료비: **₩{roll_cost:,.0f}**")
 
+# --- [1. 원드라이브 직통 주소 설정] ---
+# 💡 윤겸님이 찾아내신 docId 기반의 직통 주소입니다.
+EXCEL_URL = "https://onedrive.live.com/download?resid=40F78A9D17F33324!s8899948b6b8c45babf6b75bda192b190"
+
+@st.cache_data(ttl=60) # 1분마다 최신 데이터를 가져옵니다.
+def load_simple_inventory():
+    try:
+        response = requests.get(EXCEL_URL)
+        f = io.BytesIO(response.content)
+        
+        # 💡 skiprows=5: 엑셀 상단 5줄을 무시하고 6행부터 읽습니다. 
+        # 만약 데이터가 더 위나 아래에 있다면 이 숫자를 고치세요.
+        df = pd.read_excel(f, skiprows=1, engine='openpyxl')
+        
+        # 컬럼명 양끝 공백 제거 (엑셀 오타 방지용)
+        df.columns = [str(c).strip() for c in df.columns]
+        
+        return df.dropna(subset=['상품명']) # '상품명' 칸이 비어있는 줄은 버립니다.
+    except Exception as e:
+        st.error(f"데이터 로딩 중 오류 발생: {e}")
+        return pd.DataFrame()
+
+# --- [2. 화면 출력] ---
+st.set_page_config(page_title="요정비닐 재고 현황", layout="wide")
+st.title("📦 inventory.xlsx 실시간 상품 리스트")
+
+# 데이터 불러오기 실행
+inventory_df = load_simple_inventory()
+
+if not inventory_df.empty:
+    st.success("✅ 원드라이브 데이터와 성공적으로 연결되었습니다.")
+    
+    # 💡 엑셀에 있는 그대로의 표를 출력합니다.
+    st.subheader("현재 등록된 상품 목록")
+    st.dataframe(inventory_df, use_container_width=True)
+    
+    # 간단한 요약 정보
+    st.write(f"총 **{len(inventory_df)}**개의 상품이 등록되어 있습니다.")
+else:
+    st.warning("데이터를 불러올 수 없습니다. 원드라이브 주소나 엑셀 파일 내 '상품명' 제목을 확인해 주세요.")
 
 
 
