@@ -271,76 +271,24 @@ if menu == "🏭 원가 시뮬레이터":
         roll_cost = final_price * res_weight
         st.success(f"📦 현재 규격(무게 {res_weight:.2f}kg) 1롤당 원료비: **₩{roll_cost:,.0f}**")
 
+# 💡 위 1번에서 만든 주소를 여기에 넣으세요!
+EXCEL_URL = "https://onedrive.live.com/download?resid=40F78A9D17F33324!s8899948b6b8c45babf6b75bda192b190"
 
-
-# ==========================================
-# 1. 변수 및 설정 관리 (여기만 고치면 됩니다!)
-# ==========================================
-CONFIG = {
-    "EXCEL_URL": "https://onedrive.live.com/download?resid=40F78A9D17F33324!s8899948b6b8c45babf6b75bda192b190",
-    "SKIP_ROWS": 1,      # 엑셀 상단에 무시할 줄 수
-    "COLUMNS": {         # [엑셀 컬럼명] : [코드에서 쓸 이름]
-        "상품명": "name",
-        "폭": "width",
-        "길이": "length",
-        "두께": "thickness",
-        "매수": "count",
-    }
-}
-
-# ==========================================
-# 2. 데이터 로드 및 변환 로직
-# ==========================================
 @st.cache_data(ttl=60)
-def load_and_map_data():
-    # 엑셀 읽기
-    # 'openpyxl' 엔진을 사용하도록 명시해 줍니다.
-    df_raw = pd.read_excel(CONFIG["EXCEL_URL"], skiprows=CONFIG["SKIP_ROWS"], engine='openpyxl')
+def load_data():
+    # 💡 pandas가 직접 주소를 치고 들어가게 합니다.
+    return pd.read_excel(EXCEL_URL, skiprows=5, engine='openpyxl')
 
-    # 엑셀의 실제 컬럼명과 설정된 변수 매핑
-    # 설정된 컬럼들만 쏙 뽑아서 이름을 통일합니다.
-    target_cols = list(CONFIG["COLUMNS"].keys())
-    df = df_raw[target_cols].copy()
-    df.rename(columns=CONFIG["COLUMNS"], inplace=True)
-    
-    # 데이터 정제 (빈 줄 제거 등)
-    df.dropna(subset=["name"], inplace=True)
-    return df
-
-# ==========================================
-# 3. 메인 화면 및 계산 로직
-# ==========================================
-st.title("🏭 요정비닐 스마트 엑셀 관리자")
+st.title("🏭 요정비닐 엑셀 동기화 대시보드")
 
 try:
-    # 데이터 불러오기
-    product_df = load_and_map_data()
-    
-    # 원단 단가 설정 (사이드바)
-    m_price = st.sidebar.number_input("현재 원단 단가 (원/kg)", value=1588)
-
-    # 윤겸님의 황금 공식 적용
-    # (폭/100) * (길이/100) * 2 * 92 * 두께 * 매수
-    product_df['weight_kg'] = (product_df['width']/100) * (product_df['length']/100) * \
-                               2 * 92 * product_df['thickness'] * product_df['count']
-    
-    product_df['cost'] = product_df['weight_kg'] * m_price
-    product_df['margin_rate'] = (1 - (product_df['cost'] / product_df['price'])) * 100
-
-    # 결과 출력
-    st.subheader("📦 상품별 실시간 분석 리포트")
-    st.dataframe(product_df[['name', 'width', 'length', 'thickness', 'weight_kg', 'cost', 'margin_rate']].style.format({
-        'weight_kg': '{:.3f}kg',
-        'cost': '₩{:,.0f}',
-        'margin_rate': '{:.1f}%'
-    }))
-
+    df = load_data()
+    st.success("✅ 드디어 연결 성공!")
+    st.dataframe(df.head())
 except Exception as e:
-    st.error(f"오류 발생: {e}")
-    st.info("CONFIG의 COLUMNS 이름이 엑셀의 제목과 정확히 일치하는지 확인해 주세요.")
-
-
-
+    st.error(f"❌ 아직 연결이 안 됩니다: {e}")
+    st.info("1. 원드라이브 공유 설정을 '모든 사용자'로 바꿨는지 확인해 주세요.")
+    st.info("2. 브라우저 주소창에 위 링크를 넣었을 때 파일이 바로 다운로드되는지 확인해 보세요.")
 
 
 
