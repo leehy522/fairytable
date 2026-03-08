@@ -271,39 +271,60 @@ if menu == "🏭 원가 시뮬레이터":
         roll_cost = final_price * res_weight
         st.success(f"📦 현재 규격(무게 {res_weight:.2f}kg) 1롤당 원료비: **₩{roll_cost:,.0f}**")
 
-# 💡 이 주소가 파이썬이 엑셀 데이터만 쏙 빼올 수 있는 '직통 주소'입니다.
-EXCEL_URL = "https://onedrive.live.com/edit?cid=40f78a9d17f33324&id=40F78A9D17F33324!s8899948b6b8c45babf6b75bda192b190&resid=40F78A9D17F33324!s8899948b6b8c45babf6b75bda192b190&ithint=file%2Cxlsx&embed=1&wdAllowInteractivity=False&wdHideGridlines=True&wdHideHeaders=True&wdDownloadButton=True&wdInConfigurator=True%2CTrue&migratedtospo=true&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy80MGY3OGE5ZDE3ZjMzMzI0L0lRU0xsSm1Jakd1NlJiOXJkYjJoa3JHUUFUZ09UZC03cmdNSklMY0lYYWE2VERVP3dkQWxsb3dJbnRlcmFjdGl2aXR5PUZhbHNlJndkSGlkZUdyaWRsaW5lcz1UcnVlJndkSGlkZUhlYWRlcnM9VHJ1ZSZ3ZERvd25sb2FkQnV0dG9uPVRydWUmd2RJbkNvbmZpZ3VyYXRvcj1UcnVlJndkSW5Db25maWd1cmF0b3I9VHJ1ZQ&wdo=2"
 
+# --- [1. 데이터 로딩 설정] ---
 @st.cache_data(ttl=60)
-def load_inventory():
+def load_inventory_data():
+    # 💡 윤겸님의 진짜 직통 주소 (resid 방식)
+    EXCEL_URL = "https://onedrive.live.com/download?resid=40F78A9D17F33324!s8899948b6b8c45babf6b75bda192b190"
     try:
-        # 브라우저인 것처럼 속여서 접근해야 차단되지 않습니다.
         headers = {'User-Agent': 'Mozilla/5.0'}
         response = requests.get(EXCEL_URL, headers=headers)
-        
-        # 가져온 데이터가 진짜 엑셀인지 확인하기 위해 메모리에 담습니다.
         f = io.BytesIO(response.content)
         
-        # 💡 엑셀 엔진(openpyxl)을 명시하고, 제목 줄 앞의 빈칸을 건너뜁니다.
-        # 만약 엑셀의 6행부터 데이터가 있다면 skiprows=5로 설정하세요.
+        # 엑셀의 6행부터 데이터 시작 (skiprows=5)
         df = pd.read_excel(f, skiprows=5, engine='openpyxl')
         
-        # 컬럼명 정리 및 '상품명' 기준 빈 데이터 제거
+        # 컬럼명 정리 및 빈 행 제거
         df.columns = [str(c).strip() for c in df.columns]
         return df.dropna(subset=['상품명'])
-        
     except Exception as e:
-        st.error(f"데이터 로딩 중 오류 발생: {e}")
+        st.error(f"데이터 연결 중 오류: {e}")
         return pd.DataFrame()
 
-# --- 화면 출력 로직 ---
-st.title("🏷️ 요정비닐 상품 현황")
-df = load_inventory()
+# --- [2. 카테고리 화면 구성] ---
+def show_product_status():
+    st.title("🏷️ 요정비닐 상품 실시간 현황")
+    st.write(f"마지막 업데이트: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    df = load_inventory_data()
 
-if not df.empty:
-    st.success("✅ 원드라이브 연결 성공!")
-    st.dataframe(df, use_container_width=True)
-else:
-    st.warning("데이터를 불러오지 못했습니다. 엑셀 파일 내 '상품명' 제목이 있는지 확인해 주세요.")
+    if not df.empty:
+        # 상단 요약 지표 (Metric)
+        c1, c2, c3 = st.columns(3)
+        c1.metric("총 등록 상품", f"{len(df)}종")
+        
+        # 검색 및 필터 (타이핑 최소화)
+        search = st.text_input("🔍 찾으시는 상품명을 입력하세요", placeholder="예: 배달봉투, 검정비닐...")
+        
+        if search:
+            display_df = df[df['상품명'].str.contains(search, na=False)]
+        else:
+            display_df = df
+
+        # 데이터 테이블 출력
+        st.subheader("📦 전체 상품 리스트")
+        st.info("💡 내 컴퓨터에서 엑셀을 저장하고 1분 뒤 새로고침하면 자동 반영됩니다.")
+        
+        # 표 형식 최적화 (불필요한 인덱스 제거 및 너비 맞춤)
+        st.dataframe(display_df, use_container_width=True, hide_index=True)
+        
+    else:
+        st.warning("데이터를 불러올 수 없습니다. 원드라이브 공유 설정이나 엑셀의 '상품명' 제목을 확인해 주세요.")
+
+# --- [3. 메뉴 통합] ---
+# 기존 사이드바 코드에 아래와 같이 연결하세요.
+if menu == "🏷️ 요정비닐 상품 현황":
+    show_product_status()
 
 
