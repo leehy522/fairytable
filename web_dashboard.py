@@ -271,9 +271,8 @@ if menu == "🏭 원가 시뮬레이터":
         roll_cost = final_price * res_weight
         st.success(f"📦 현재 규격(무게 {res_weight:.2f}kg) 1롤당 원료비: **₩{roll_cost:,.0f}**")
 
-import streamlit as st
-import pandas as pd
-
+if menu == "🏷️ 요정비닐 상품 현황":
+    
 # 💡 구글 시트 CSV 직통 주소
 CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTVvCbm9KEoUrqvlXSyIyLHmstIGZuiuTMLYDBnmgnxInrfoMelDXFSWogUdHUfNALb7uC_nBAIyzif/pub?output=csv"
 
@@ -336,6 +335,7 @@ if not df.empty:
     st.success("✅ 데이터가 성공적으로 업데이트되었습니다.")
 else:
     st.error("데이터를 불러올 수 없습니다. 구글 시트의 '웹에 게시' 설정과 '상품명' 컬럼을 확인해 주세요.")
+
 
 
 
