@@ -247,7 +247,7 @@ if menu == "🏭 원가 시뮬레이터":
     col1, col2 = st.columns(2)
     with col1:
         virgin_price = st.number_input("신원료 가격 (원/kg)", value=1530)
-        recycled_price = st.number_input("재생원료 가격 (원/kg)", value=2700)
+        recycled_price = st.number_input("재생원료 가격 (원/kg)", value=1300)
     with col2:
         # 슬라이더로 비율 조절
         virgin_ratio = st.slider("신원료 혼합 비율 (%)", 0, 100, 100)
@@ -257,7 +257,7 @@ if menu == "🏭 원가 시뮬레이터":
     st.write("---")
     col3, col4 = st.columns(2)
     with col3:
-        colorant_price = st.number_input("조색제 가격 (원/kg)", value=2900)
+        colorant_price = st.number_input("조색제 가격 (원/kg)", value=2700)
     with col4:
         colorant_ratio = st.number_input("조색제 혼합 비율 (%)", value=2.5, step=0.1)
 
@@ -301,6 +301,7 @@ elif menu == "📦 상품 DB 조회":
     st.title("📦 등록된 상품 정보 (data_library.py)")
     st.write("현재 시스템에 등록된 15개 주력 상품 정보입니다.")
     st.table(pd.DataFrame(PRODUCT_DB))
+
 
 
 
