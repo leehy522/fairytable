@@ -294,7 +294,7 @@ def load_google_sheet_data():
         return pd.DataFrame()
 
 # --- 화면 출력 구성 ---
-st.title("🏷️ 요정비닐 상품 실시간 현황")
+st.title("🏷️ 요정비닐 상품 현황")
 st.info("구글 시트에서 내용을 수정하면 웹 대시보드에 즉시 반영됩니다.")
 
 df = load_google_sheet_data()
@@ -310,6 +310,7 @@ if not df.empty:
     st.dataframe(df, use_container_width=True, hide_index=True)
 else:
     st.warning("데이터를 불러오지 못했습니다. 구글 시트 내 '상품명' 열이 있는지 확인해 주세요.")
+
 
 
 
