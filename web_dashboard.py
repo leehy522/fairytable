@@ -76,7 +76,7 @@ st.set_page_config(page_title="요정비닐 스마트 시스템", layout="wide")
 
 # 사이드바 메뉴 설정
 st.set_page_config(page_title="요정비닐 관리 시스템", layout="wide")
-menu = st.sidebar.radio("메뉴", ["요정비닐 재고 현황","🚚 밀크런 PPT 변환", "📦 택배 송장 변환", "🏭 원가 시뮬레이터", "📈 시장 지표 분석"])
+menu = st.sidebar.radio("메뉴", ["🏷️ 요정비닐 상품 현황","🚚 밀크런 PPT 변환", "📦 택배 송장 변환", "🏭 원가 시뮬레이터", "📈 시장 지표 분석"])
 
 # --- 메뉴 1: 시장 지표 분석 ---
 if menu == "📈 시장 지표 분석":
@@ -272,47 +272,51 @@ if menu == "🏭 원가 시뮬레이터":
         roll_cost = final_price * res_weight
         st.success(f"📦 현재 규격(무게 {res_weight:.2f}kg) 1롤당 원료비: **₩{roll_cost:,.0f}**")
 
-if menu == "요정비닐 재고 현황":
+import streamlit as st
+import pandas as pd
+import io
+import requests
 
-# --- [1. 원드라이브 직통 주소 설정] ---
-EXCEL_URL = "https://onedrive.live.com/download?resid=40F78A9D17F33324!s8899948b6b8c45babf6b75bda192b190"
-
+# --- [데이터 로딩 함수] ---
 @st.cache_data(ttl=60)
 def load_simple_inventory():
+    # 💡 윤겸님이 찾아내신 docId 기반 직통 주소
+    EXCEL_URL = "https://onedrive.live.com/download?resid=40F78A9D17F33324!s8899948b6b8c45babf6b75bda192b190"
     try:
-        # 이제 'requests'를 정의했으므로 오류 없이 실행됩니다.
         response = requests.get(EXCEL_URL)
         f = io.BytesIO(response.content)
-        
+        # 6행부터 데이터 시작 (skiprows=5)
         df = pd.read_excel(f, skiprows=5, engine='openpyxl')
         df.columns = [str(c).strip() for c in df.columns]
-        
         return df.dropna(subset=['상품명'])
     except Exception as e:
         st.error(f"데이터 로딩 중 오류 발생: {e}")
         return pd.DataFrame()
 
- 
-# --- [2. 화면 출력] ---
-st.set_page_config(page_title="요정비닐 재고 현황", layout="wide")
-st.title("📦 inventory.xlsx 실시간 상품 리스트")
+# --- [사이드바 메뉴 구성] ---
+# 기존 메뉴 리스트에 "요정비닐 상품 현황"을 추가합니다.
+menu = st.sidebar.radio("메뉴", ["🚚 밀크런 PPT 변환", "📦 택배 송장 변환", "🏭 원가 시뮬레이터", "📈 시장 지표 분석", "🏷️ 요정비닐 상품 현황"])
 
-# 데이터 불러오기 실행
-inventory_df = load_simple_inventory()
+# --- [메뉴: 요정비닐 상품 현황] ---
+if menu == "🏷️ 요정비닐 상품 현황":
+    st.title("🏷️ 요정비닐 실시간 상품 현황")
+    st.info("내 컴퓨터에서 inventory.xlsx를 저장하면 1분 뒤 자동 반영됩니다.")
 
-if not inventory_df.empty:
-    st.success("✅ 원드라이브 데이터와 성공적으로 연결되었습니다.")
-    
-    # 💡 엑셀에 있는 그대로의 표를 출력합니다.
-    st.subheader("현재 등록된 상품 목록")
-    st.dataframe(inventory_df, use_container_width=True)
-    
-    # 간단한 요약 정보
-    st.write(f"총 **{len(inventory_df)}**개의 상품이 등록되어 있습니다.")
-else:
-    st.warning("데이터를 불러올 수 없습니다. 원드라이브 주소나 엑셀 파일 내 '상품명' 제목을 확인해 주세요.")
+    inventory_df = load_simple_inventory()
 
+    if not inventory_df.empty:
+        # 검색 기능 추가 (손가락 타이핑을 최소화하는 필터)
+        search_term = st.text_input("🔍 상품명 검색", "")
+        
+        if search_term:
+            display_df = inventory_df[inventory_df['상품명'].str.contains(search_term, na=False)]
+        else:
+            display_df = inventory_df
 
+        st.subheader(f"📦 등록 상품 목록 (총 {len(display_df)}건)")
+        st.dataframe(display_df, use_container_width=True)
+    else:
+        st.warning("데이터를 불러올 수 없습니다. 원드라이브 연결 상태를 확인해 주세요.")
 
 
 
