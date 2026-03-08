@@ -271,6 +271,10 @@ if menu == "🏭 원가 시뮬레이터":
         roll_cost = final_price * res_weight
         st.success(f"📦 현재 규격(무게 {res_weight:.2f}kg) 1롤당 원료비: **₩{roll_cost:,.0f}**")
 
+
+# 'openpyxl' 엔진을 사용하도록 명시해 줍니다.
+df_raw = pd.read_excel(CONFIG["EXCEL_URL"], skiprows=CONFIG["SKIP_ROWS"], engine='openpyxl')
+
 # ==========================================
 # 1. 변수 및 설정 관리 (여기만 고치면 됩니다!)
 # ==========================================
@@ -335,6 +339,7 @@ try:
 except Exception as e:
     st.error(f"오류 발생: {e}")
     st.info("CONFIG의 COLUMNS 이름이 엑셀의 제목과 정확히 일치하는지 확인해 주세요.")
+
 
 
 
