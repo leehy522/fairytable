@@ -117,63 +117,73 @@ elif menu == "🚚 밀크런 PPT 변환":
     
     if tpl_file and pdf_files:
         if st.button("🚀 PPT 생성 시작"):
-            with st.spinner("PDF 분석 및 PPT 생성 중..."):
+            with st.spinner("발주 정보를 분석하여 슬라이드를 생성 중입니다..."):
                 try:
                     prs = Presentation(tpl_file)
                     
                     for pdf_file in pdf_files:
-                        # 1. PDF 텍스트 추출
                         reader = pypdf.PdfReader(pdf_file)
                         full_text = ""
                         for page in reader.pages:
                             full_text += page.extract_text()
                         
-                        # 2. 데이터 파싱 (정규표현식 활용)
-                        po_num = re.search(r'발주번호\s*:\s*(\d+)', full_text).group(1) if re.search(r'발주번호\s*:\s*(\d+)', full_text) else "미확인"
-                        fc_name = re.search(r'납품센터\s*:\s*([가-힣\w]+)', full_text).group(1) if re.search(r'납품센터\s*:\s*([가-힣\w]+)', full_text) else "미확인"
-                        date_str = re.search(r'납기일자\s*:\s*(\d{4})\.(\d{2})\.(\d{2})', full_text)
-                        year, month, day = date_str.groups() if date_str else ("2026", "03", "01")
-
-                        # 3. 상품 목록 추출 및 팔레트 계산
-                        items = []
-                        # (PDF 내부 표의 SKU, 수량 등을 찾는 로직 - 윤겸님의 기존 패턴 적용)
-                        # 예시 SKU 리스트를 기반으로 팔레트당 수량(cap)을 가져와 계산합니다.
-                        # 여기서는 예시로 하나의 품목이 100박스 발주되었다고 가정하고 로직을 구성합니다.
+                        # --- [원본 파싱 로직 시작] ---
+                        # 발주번호, 센터명, 날짜 추출
+                        po_match = re.search(r'발주번호\s*:\s*(\d+)', full_text)
+                        po_num = po_match.group(1) if po_match else "미확인"
                         
-                        # 예시 데이터 (실제 운영 시 PDF 파싱 결과가 들어감)
-                        sku_example = "32058611"
-                        total_qty = 600 # 예시 수량
-                        cap = get_pallet_capacity(sku_example) #
-                        total_pallets = (total_qty + cap - 1) // cap
+                        fc_match = re.search(r'납품센터\s*:\s*([가-힣]+)', full_text)
+                        fc_name = fc_match.group(1) if fc_match else "미확인"
+                        
+                        date_match = re.search(r'납기일자\s*:\s*(\d{4})\.(\d{2})\.(\d{2})', full_text)
+                        year, month, day = date_match.groups() if date_match else ("2026", "03", "09")
 
-                        # 4. 팔레트별 슬라이드 생성
-                        for i in range(total_pallets):
-                            # 첫 번째 슬라이드는 템플릿 사용, 그 외에는 복제
-                            slide = prs.slides[0] if i == 0 and len(prs.slides) > 0 else duplicate_slide(prs, 0)
+                        # 상품 라인 추출 (숫자로 시작하는 상품행 찾기)
+                        lines = full_text.split('\n')
+                        items_found = []
+                        for line in lines:
+                            # 예: 1 32058611 상품명... 600 BOX 형태
+                            match = re.match(r'(\d+)\s+(\d{8})\s+(.*?)\s+(\d+)\s+BOX', line)
+                            if match:
+                                items_found.append({
+                                    'sku': match.group(2),
+                                    'name': match.group(3).strip(),
+                                    'qty': int(match.group(4))
+                                })
+
+                        # 팔레트 적재 계산 및 슬라이드 생성
+                        for item in items_found:
+                            cap = get_pallet_capacity(item['sku']) #
+                            total_qty = item['qty']
+                            num_pallets = (total_qty + cap - 1) // cap
                             
-                            p_info = {
-                                'no': f"PLT-{i+1}",
-                                'total_qty': total_qty,
-                                'cap': cap,
-                                'items_list': [{'sku': sku_example, 'name': '요정비닐 상품', 'qty': total_qty}]
-                            }
-                            # 슬라이드에 데이터 채우기
-                            fill_slide_data(slide, p_info, po_num, fc_name, year, month, day)
+                            for i in range(num_pallets):
+                                # 첫 슬라이드는 0번 사용, 이후는 복제
+                                slide = prs.slides[0] if len(prs.slides) == 1 and i == 0 else duplicate_slide(prs, 0)
+                                
+                                p_data = {
+                                    'no': f"PLT-{i+1}",
+                                    'total_qty': total_qty,
+                                    'cap': cap,
+                                    'items_list': [item]
+                                }
+                                fill_slide_data(slide, p_data, po_num, fc_name, year, month, day) #
+                        # --- [원본 파싱 로직 끝] ---
 
-                    # --- [결과물 저장 및 다운로드 버튼] ---
-                    ppt_output = io.BytesIO()
-                    prs.save(ppt_output)
-                    ppt_output.seek(0)
+                    # 결과물 메모리 저장 및 다운로드 버튼 생성
+                    ppt_out = io.BytesIO()
+                    prs.save(ppt_out)
+                    ppt_out.seek(0)
                     
-                    st.success(f"✅ 총 {len(pdf_files)}개의 발주서 변환 완료!")
+                    st.success(f"✅ 발주서 {len(pdf_files)}개 변환 완료!")
                     st.download_button(
                         label="📥 변환된 PPT 다운로드",
-                        data=ppt_output.getvalue(),
-                        file_name=f"요정비닐_밀크런_{datetime.now().strftime('%m%d_%H%M')}.pptx",
+                        data=ppt_out.getvalue(),
+                        file_name=f"밀크런_변환_{datetime.now().strftime('%m%d')}.pptx",
                         mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
                     )
                 except Exception as e:
-                    st.error(f"❌ 변환 중 오류 발생: {e}")
+                    st.error(f"❌ 변환 오류: {e}")
 # --- 메뉴 3: 택배 송장 변환 (A-type 변환기 로직 이식) ---
 if menu == "📦 택배 송장 변환":
     st.title("📦 택배 송장 자동 변환기 (A-type)")
@@ -364,6 +374,7 @@ if menu == "📦 상품 리스트 관리":
     if st.button("💾 상품 정보 업데이트"):
         st.session_state.products_2026 = edited_products
         st.success("상품 리스트가 성공적으로 업데이트되었습니다!")
+
 
 
 
