@@ -113,14 +113,32 @@ if menu == "📈 시장 지표 분석":
 # --- 메뉴 2: 밀크런 PPT 변환 ---
 elif menu == "🚚 밀크런 PPT 변환":
     st.title("🚚 밀크런 자동 변환 시스템")
-    # (밀크런 업로드 및 변환 로직 - 기존과 동일하게 유지)
     tpl_file = st.file_uploader("1. 밀크런_양식.pptx 업로드", type=['pptx'])
     pdf_files = st.file_uploader("2. 발주서 PDF 업로드", type=['pdf'], accept_multiple_files=True)
     
     if tpl_file and pdf_files:
         if st.button("🚀 PPT 생성 시작"):
-            # ... (변환 실행 로직) ...
-            st.success("변환 성공!")
+            with st.spinner("PPT를 생성하고 있습니다..."):
+                try:
+                    # --- [변환 로직 시작] ---
+                    prs = Presentation(tpl_file)
+                    # (여기에 윤겸님의 상세 변환 로직이 들어갑니다)
+                    
+                    # --- [결과물을 메모리에 저장] ---
+                    ppt_output = io.BytesIO()
+                    prs.save(ppt_output)
+                    ppt_output.seek(0)
+                    
+                    # 💡 성공 메시지와 다운로드 버튼을 한 세트로 묶습니다.
+                    st.success("🎉 변환 성공! 아래 버튼을 눌러 저장하세요.")
+                    st.download_button(
+                        label="📥 변환된 PPT 다운로드",
+                        data=ppt_output.getvalue(),
+                        file_name=f"요정비닐_밀크런_{datetime.now().strftime('%m%d_%H%M')}.pptx",
+                        mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                    )
+                except Exception as e:
+                    st.error(f"❌ 변환 중 오류 발생: {e}")
 
 # --- 메뉴 3: 택배 송장 변환 (A-type 변환기 로직 이식) ---
 if menu == "📦 택배 송장 변환":
@@ -312,4 +330,5 @@ if menu == "📦 상품 리스트 관리":
     if st.button("💾 상품 정보 업데이트"):
         st.session_state.products_2026 = edited_products
         st.success("상품 리스트가 성공적으로 업데이트되었습니다!")
+
 
