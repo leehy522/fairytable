@@ -212,14 +212,6 @@ elif menu == "📈 시장 지표 분석":
     if "market_data" in st.session_state and st.session_state.market_data is not None:
         df = st.session_state.market_data
         
-        # --- [표 1: 최근 2주치 데이터 고정] ---
-        st.subheader("🗓️ 최근 2주 상세 데이터")
-        recent_2w = df.tail(14).sort_index(ascending=False) # 최근 14일치 역순 정렬
-        st.dataframe(
-            recent_2w.style.format({"WTI 유가": "${:.2f}", "원/달러 환율": "₩{:,.2f}"}),
-            use_container_width=True
-        )
-
         # --- [표 2: 기간 검색 기능] ---
         st.divider()
         st.subheader("🔍 기간별 데이터 조회")
