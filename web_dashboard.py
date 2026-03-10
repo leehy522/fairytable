@@ -151,20 +151,69 @@ elif menu == "🚚 밀크런 PPT 변환":
                     )
                 except Exception as e:
                     st.error(f"❌ 오류 발생: {e}")
+                    
 # --- 메뉴 3: 택배 송장 변환 ---
 elif menu == "📦 택배 송장 변환":
     st.title("📦 택배 송장 자동 변환기 (A-type)")
+    st.write("원본 주문 엑셀을 요정비닐 템플릿 양식에 맞춰 변환합니다.")
+
     col1, col2 = st.columns(2)
     with col1:
         input_file = st.file_uploader("1. 원본 주문 엑셀 선택", type=['xlsx', 'xls'])
     with col2:
-        template_file = st.file_uploader("2. 템플릿 엑셀(A-type 양식) 선택", type=['xlsx', 'xls'])
+        template_file = st.file_uploader("2. 템플릿 엑셀(A-type) 선택", type=['xlsx', 'xls'])
 
     if input_file and template_file:
         if st.button("🚀 변환 실행"):
-            # (기존의 엑셀 변환 및 다운로드 버튼 로직 실행)
-            st.info("변환을 시작합니다.")
+            try:
+                # 1. 파일 읽기 (숫자 변형 방지를 위해 문자열로 읽기)
+                src = pd.read_excel(input_file, dtype=str)
+                
+                # 2. 매핑 및 검증 로직
+                mapping = {
+                    "주문번호": "Order ID",
+                    "받는사람": "Receiver Name",
+                    "전화번호1": "Mobile",
+                    "우편번호": "Zip Code",
+                    "주소": "Detailed address",
+                    "상품명1": "Product Information",
+                }
+                # 도시 정보가 담긴 다양한 컬럼명 후보들
+                city_candidates = ["City", "city", "도시", "시", "시/군/구"]
+                city_col = next((c for c in city_candidates if c in src.columns), None)
 
+                if not city_col:
+                    st.error("⚠️ 원본 파일에서 'City' 또는 '도시' 컬럼을 찾을 수 없습니다.")
+                else:
+                    # 3. 데이터 변환 처리
+                    out = pd.DataFrame()
+                    for out_col, src_col in mapping.items():
+                        if src_col in src.columns:
+                            out[out_col] = src[src_col].fillna("").astype(str)
+
+                    # 주소 결합 로직: City + Detailed address
+                    out["주소"] = (
+                        src[city_col].fillna("").astype(str).str.strip() + " " + 
+                        src["Detailed address"].fillna("").astype(str).str.strip()
+                    ).str.strip()
+
+                    # 전화번호2는 1과 동일하게 세팅
+                    out["전화번호2"] = out["전화번호1"]
+
+                    # 4. 결과 다운로드 생성
+                    output = io.BytesIO()
+                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                        out.to_excel(writer, index=False)
+                    
+                    st.success(f"✅ 변환 완료! (총 {len(out)}행)")
+                    st.download_button(
+                        label="📥 변환된 엑셀 다운로드",
+                        data=output.getvalue(),
+                        file_name=f"요정비닐_송장변환_{datetime.now().strftime('%m%d')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+            except Exception as e:
+                st.error(f"❌ 변환 실패: {e}")
 # --- 메뉴 4: 원가 시뮬레이터 ---
 elif menu == "🏭 원가 시뮬레이터":
     st.title("🏭 원가 및 규격 시뮬레이터")
@@ -194,69 +243,84 @@ elif menu == "🏭 원가 시뮬레이터":
 
 # --- 메뉴 5: 시장 지표 분석 ---
 elif menu == "📈 시장 지표 분석":
-    st.title("📈 실시간 유가 및 환율 모니터링")
-    st.write("WTI 유가와 원/달러 환율의 1년치 흐름을 실시간으로 가져옵니다.")
+    st.title("📈 시장 지표 실시간 분석")
     
-    # 💡 세션 상태를 사용하여 데이터를 유지합니다.
+    # 1. 데이터 불러오기 및 세션 관리
     if "market_data" not in st.session_state:
         st.session_state.market_data = None
 
-    if st.button("📊 최신 데이터 불러오기"):
-        with st.spinner('금융 데이터를 가져오는 중...'):
+    if st.button("🔄 지표 데이터 최신 업데이트 (2년치)"):
+        with st.spinner('WTI 유가 및 환율 데이터를 동기화 중입니다...'):
             try:
-                # 데이터 수집 (WTI: CL=F, 환율: KRW=X)
-                symbols = {"WTI 유가": "CL=F", "원/달러 환율": "KRW=X"}
-                df = pd.DataFrame()
+                # 💡 환율 오류 방지를 위해 개별적으로 호출하여 결합합니다.
+                wti_df = yf.download("CL=F", period="2y", interval="1d")['Close']
+                fx_df = yf.download("KRW=X", period="2y", interval="1d")['Close']
                 
-                for name, sym in symbols.items():
-                    # yfinance를 사용하여 1년치 일간 데이터를 가져옵니다.
-                    ticker = yf.Ticker(sym)
-                    hist = ticker.history(period="1y")
-                    df[name] = hist['Close']
+                # 데이터 병합 및 정리
+                combined_df = pd.DataFrame({
+                    "WTI 유가": wti_df,
+                    "원/달러 환율": fx_df
+                }).ffill().bfill()
                 
-                # 결측치 처리 (주말 등 데이터가 없는 날짜 채우기)
-                df = df.ffill()
-                st.session_state.market_data = df
-                st.success("✅ 최신 데이터를 성공적으로 업데이트했습니다.")
+                st.session_state.market_data = combined_df
+                st.success("✅ 지표 동기화에 성공했습니다!")
+                st.rerun()
             except Exception as e:
-                st.error(f"데이터를 가져오는 중 오류가 발생했습니다: {e}")
+                st.error(f"데이터를 불러오는 중 오류가 발생했습니다: {e}")
 
-    # 데이터가 로드된 경우에만 그래프와 지표 표시
+    # 데이터가 있을 때만 화면 구성
     if st.session_state.market_data is not None:
         df = st.session_state.market_data
         
-        # 1. 상단 지표 (Metric)
+        # --- [STEP 1: 최상단 실시간 수치] ---
         c1, c2 = st.columns(2)
-        current_wti = df['WTI 유가'].iloc[-1]
-        current_ex = df['원/달러 환율'].iloc[-1]
+        curr_wti = df["WTI 유가"].iloc[-1]
+        curr_fx = df["원/달러 환율"].iloc[-1]
         
-        # 전일 대비 변동폭 계산
-        wti_delta = current_wti - df['WTI 유가'].iloc[-2]
-        ex_delta = current_ex - df['원/달러 환율'].iloc[-2]
+        # 전일 대비 변화량
+        wti_diff = curr_wti - df["WTI 유가"].iloc[-2]
+        fx_diff = curr_fx - df["원/달러 환율"].iloc[-2]
         
-        c1.metric("현재 WTI 유가", f"${current_wti:.2f}", f"{wti_delta:.2f}")
-        c2.metric("현재 환율", f"₩{current_ex:.2f}", f"{ex_delta:.2f}")
+        c1.metric("현재 WTI 유가", f"${curr_wti:.2f}", f"{wti_diff:+.2f}")
+        c2.metric("현재 원/달러 환율", f"₩{curr_fx:,.2f}", f"{fx_diff:+.2f}")
+        st.divider()
 
-        # 2. 이중 축 그래프 시각화
-        fig, ax1 = plt.subplots(figsize=(10, 5))
-        ax2 = ax1.twinx()
+        # --- [STEP 2: 기간 검색 설정] ---
+        st.subheader("🔍 조회 기간 설정")
+        col_d1, col_d2 = st.columns(2)
+        with col_d1:
+            # 기본값은 최근 2주로 설정
+            start_date = st.date_input("시작일", df.index.max().date() - pd.Timedelta(days=14))
+        with col_d2:
+            end_date = st.date_input("종료일", df.index.max().date())
         
-        ax1.plot(df.index, df["WTI 유가"], color='tab:blue', label='WTI', linewidth=2)
-        ax2.plot(df.index, df["원/달러 환율"], color='tab:red', label='환율', linestyle='--', linewidth=2)
-        
-        ax1.set_ylabel("WTI Price (USD)", color='tab:blue')
-        ax2.set_ylabel("Exchange Rate (KRW)", color='tab:red')
-        plt.title("WTI Oil vs USD/KRW Exchange Rate (Last 1 Year)")
-        
-        # 범례 통합 표시
-        lines1, labels1 = ax1.get_legend_handles_labels()
-        lines2, labels2 = ax2.get_legend_handles_labels()
-        ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
-        
-        st.pyplot(fig)
-        
-        # 3. 상세 데이터 표
-        with st.expander("📋 최근 10일 상세 데이터 확인"):
-            st.dataframe(df.tail(10).sort_index(ascending=False), use_container_width=True)
+        # 날짜 필터링
+        filtered_df = df.loc[str(start_date):str(end_date)]
 
+        if not filtered_df.empty:
+            # --- [STEP 3: 시각화 그래프] ---
+            fig, ax1 = plt.subplots(figsize=(10, 4))
+            ax2 = ax1.twinx()
+            
+            ax1.plot(filtered_df.index, filtered_df["WTI 유가"], color='tab:blue', label='WTI (USD)', linewidth=2)
+            ax2.plot(filtered_df.index, filtered_df["원/달러 환율"], color='tab:red', label='FX (KRW)', linestyle='--', linewidth=2)
+            
+            ax1.set_ylabel("WTI Price", color='tab:blue')
+            ax2.set_ylabel("Exchange Rate", color='tab:red')
+            plt.title(f"Market Trends ({start_date} ~ {end_date})")
+            st.pyplot(fig)
 
+            # --- [STEP 4: 접이식 상세 수치 표] ---
+            with st.expander("📊 상세 데이터 표 보기 (클릭하여 열기/닫기)", expanded=False):
+                st.write("조회된 기간의 정확한 수치 데이터입니다.")
+                # 최신순 정렬 및 금액 포맷 적용
+                formatted_df = filtered_df.sort_index(ascending=False).copy()
+                st.dataframe(
+                    formatted_df.style.format({
+                        "WTI 유가": "${:.2f}",
+                        "원/달러 환율": "₩{:,.2f}"
+                    }),
+                    use_container_width=True
+                )
+        else:
+            st.warning("선택한 기간에 데이터가 없습니다. 날짜를 확인해 주세요.")
