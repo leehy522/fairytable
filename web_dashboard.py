@@ -194,8 +194,68 @@ elif menu == "🏭 원가 시뮬레이터":
 
 # --- 메뉴 5: 시장 지표 분석 ---
 elif menu == "📈 시장 지표 분석":
-    st.title("📈 실시간 유가 및 환율 분석")
+    st.title("📈 실시간 유가 및 환율 모니터링")
+    st.write("WTI 유가와 원/달러 환율의 1년치 흐름을 실시간으로 가져옵니다.")
+    
+    # 💡 세션 상태를 사용하여 데이터를 유지합니다.
+    if "market_data" not in st.session_state:
+        st.session_state.market_data = None
+
     if st.button("📊 최신 데이터 불러오기"):
-        # (기존의 yfinance 및 그래프 시각화 로직 실행)
-        st.success("지표 분석 완료")
+        with st.spinner('금융 데이터를 가져오는 중...'):
+            try:
+                # 데이터 수집 (WTI: CL=F, 환율: KRW=X)
+                symbols = {"WTI 유가": "CL=F", "원/달러 환율": "KRW=X"}
+                df = pd.DataFrame()
+                
+                for name, sym in symbols.items():
+                    # yfinance를 사용하여 1년치 일간 데이터를 가져옵니다.
+                    ticker = yf.Ticker(sym)
+                    hist = ticker.history(period="1y")
+                    df[name] = hist['Close']
+                
+                # 결측치 처리 (주말 등 데이터가 없는 날짜 채우기)
+                df = df.ffill()
+                st.session_state.market_data = df
+                st.success("✅ 최신 데이터를 성공적으로 업데이트했습니다.")
+            except Exception as e:
+                st.error(f"데이터를 가져오는 중 오류가 발생했습니다: {e}")
+
+    # 데이터가 로드된 경우에만 그래프와 지표 표시
+    if st.session_state.market_data is not None:
+        df = st.session_state.market_data
+        
+        # 1. 상단 지표 (Metric)
+        c1, c2 = st.columns(2)
+        current_wti = df['WTI 유가'].iloc[-1]
+        current_ex = df['원/달러 환율'].iloc[-1]
+        
+        # 전일 대비 변동폭 계산
+        wti_delta = current_wti - df['WTI 유가'].iloc[-2]
+        ex_delta = current_ex - df['원/달러 환율'].iloc[-2]
+        
+        c1.metric("현재 WTI 유가", f"${current_wti:.2f}", f"{wti_delta:.2f}")
+        c2.metric("현재 환율", f"₩{current_ex:.2f}", f"{ex_delta:.2f}")
+
+        # 2. 이중 축 그래프 시각화
+        fig, ax1 = plt.subplots(figsize=(10, 5))
+        ax2 = ax1.twinx()
+        
+        ax1.plot(df.index, df["WTI 유가"], color='tab:blue', label='WTI', linewidth=2)
+        ax2.plot(df.index, df["원/달러 환율"], color='tab:red', label='환율', linestyle='--', linewidth=2)
+        
+        ax1.set_ylabel("WTI Price (USD)", color='tab:blue')
+        ax2.set_ylabel("Exchange Rate (KRW)", color='tab:red')
+        plt.title("WTI Oil vs USD/KRW Exchange Rate (Last 1 Year)")
+        
+        # 범례 통합 표시
+        lines1, labels1 = ax1.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+        
+        st.pyplot(fig)
+        
+        # 3. 상세 데이터 표
+        with st.expander("📋 최근 10일 상세 데이터 확인"):
+            st.dataframe(df.tail(10).sort_index(ascending=False), use_container_width=True)
 
