@@ -247,47 +247,51 @@ elif menu == "📈 시장 지표 분석":
     st.title("📈 시장 지표 정밀 분석")
 
     # --- [STEP 1: 상단 지표 카드] ---
+    # 세션에 데이터가 있을 때만 최신 수치를 상단에 표시합니다.
     if "market_data" in st.session_state and st.session_state.market_data is not None:
         df_now = st.session_state.market_data
-        # 데이터가 비어있지 않은지 확인 후 마지막 값 추출
-        last_wti = df_now["WTI 유가"].dropna().iloc[-1]
-        last_fx = df_now["원/달러 환율"].dropna().iloc[-1]
-        
-        col_m1, col_m2 = st.columns(2)
-        with col_m1:
-            st.metric("현재 WTI 유가", f"${last_wti:.2f}")
-        with col_m2:
-            st.metric("현재 원/달러 환율", f"₩{last_fx:,.2f}")
+        try:
+            # 마지막 유효 값을 안전하게 추출
+            last_wti = df_now["WTI 유가"].dropna().iloc[-1]
+            last_fx = df_now["원/달러 환율"].dropna().iloc[-1]
+            
+            # 전일 대비 변동 계산
+            prev_wti = df_now["WTI 유가"].dropna().iloc[-2]
+            prev_fx = df_now["원/달러 환율"].dropna().iloc[-2]
+            
+            col_m1, col_m2 = st.columns(2)
+            with col_m1:
+                st.metric("현재 WTI 유가", f"${last_wti:.2f}", f"{last_wti - prev_wti:+.2f}")
+            with col_m2:
+                st.metric("현재 원/달러 환율", f"₩{last_fx:,.2f}", f"{last_fx - prev_fx:+.2f}")
+        except:
+            st.info("데이터를 불러오면 여기에 최신 지표가 표시됩니다.")
     
-    # --- [STEP 2: 데이터 불러오기 (오류 방지 로직)] ---
+    # --- [STEP 2: 데이터 불러오기 (보안 및 오류 방지 로직)] ---
     if st.button("🔄 최신 데이터 불러오기 (24년~현재)"):
-        with st.spinner('금융 서버에서 데이터를 안전하게 가져오는 중...'):
+        with st.spinner('금융 서버에서 2년치 데이터를 가져오는 중...'):
             try:
-                # 💡 개별 호출 후 데이터 결합 (가장 확실한 방법)
-                # WTI 유가 (CL=F)
-                wti_data = yf.download("CL=F", period="2y", interval="1d")['Close']
-                # 원/달러 환율 (KRW=X)
-                fx_data = yf.download("KRW=X", period="2y", interval="1d")['Close']
+                # 💡 개별 호출 방식을 사용하여 연동 실패율을 최소화합니다.
+                # 기간을 2y로 설정하여 25년 3월 이전 데이터도 확보합니다.
+                import yfinance as yf
                 
-                # 각각의 데이터를 하나의 표로 합치기
-                combined_df = pd.DataFrame({
-                    "WTI 유가": wti_data,
-                    "원/달러 환율": fx_data
-                })
+                wti = yf.download("CL=F", period="2y", interval="1d")['Close']
+                fx = yf.download("KRW=X", period="2y", interval="1d")['Close']
                 
-                # 25년 3월 이전 데이터 공백 메우기
-                combined_df = combined_df.ffill().bfill()
+                # 데이터 결합 및 정제
+                combined = pd.DataFrame({"WTI 유가": wti, "원/달러 환율": fx})
+                combined = combined.ffill().bfill() # 결측치 채우기
                 
-                if not combined_df.empty:
-                    st.session_state.market_data = combined_df
-                    st.success("✅ 지표 연동 성공! 아래에서 기간을 설정하세요.")
+                if not combined.empty:
+                    st.session_state.market_data = combined
+                    st.success("✅ 지표 연동 성공!")
                     st.rerun()
                 else:
                     st.error("데이터가 비어있습니다. 서버 상태를 확인해주세요.")
             except Exception as e:
-                st.error(f"⚠️ 데이터 연동 실패: {e}")
+                st.error(f"⚠️ 데이터 연동 실패: {e}\n(잠시 후 다시 시도하거나 네트워크를 확인해주세요.)")
 
-    # --- [STEP 3: 기간 설정 및 그래프/표 출력] ---
+    # --- [STEP 3: 기간 설정 및 분석 출력] ---
     if "market_data" in st.session_state and st.session_state.market_data is not None:
         df = st.session_state.market_data
         
@@ -295,27 +299,31 @@ elif menu == "📈 시장 지표 분석":
         st.subheader("🔍 조회 기간 설정")
         c1, c2 = st.columns(2)
         with c1:
-            # 2주 전부터 오늘까지가 기본값
+            # 2주 전부터 오늘까지가 기본값입니다.
             start_d = st.date_input("조회 시작일", df.index.max().date() - pd.Timedelta(days=14))
-        with c2:
+        with col2:
             end_d = st.date_input("조회 종료일", df.index.max().date())
         
-        # 선택한 날짜만큼 자르기
+        # 선택한 날짜만큼 필터링
         filtered = df.loc[str(start_d):str(end_d)]
         
         if not filtered.empty:
-            # 1. 그래프
-            st.subheader(f"📊 {start_d} ~ {end_d} 추이")
+            # 1. 시각화 그래프
+            st.subheader(f"📊 {start_d} ~ {end_d} 가격 추이")
             fig, ax1 = plt.subplots(figsize=(10, 4))
             ax2 = ax1.twinx()
-            ax1.plot(filtered.index, filtered["WTI 유가"], color='tab:blue', label='WTI', linewidth=2)
-            ax2.plot(filtered.index, filtered["원/달러 환율"], color='tab:red', label='FX', linestyle='--', linewidth=2)
-            ax1.legend(loc='upper left'); ax2.legend(loc='upper right')
+            ax1.plot(filtered.index, filtered["WTI 유가"], color='tab:blue', label='WTI (USD)', linewidth=2)
+            ax2.plot(filtered.index, filtered["원/달러 환율"], color='tab:red', label='FX (KRW)', linestyle='--', linewidth=2)
+            
+            # 레이블 및 범례 설정
+            ax1.set_ylabel("WTI Price", color='tab:blue')
+            ax2.set_ylabel("Exchange Rate", color='tab:red')
+            plt.title("Market Trends (Last 2 Years Analysis)")
             st.pyplot(fig)
             
-            # 2. 접이식 상세 표
-            with st.expander("📝 상세 수치 데이터 보기", expanded=False):
-                st.write("조회 기간의 정확한 일별 데이터입니다.")
+            # 2. 접이식 상세 수치 표
+            with st.expander("📝 상세 데이터 수치 보기", expanded=False):
+                st.write("조회된 기간의 정확한 수치입니다.")
                 st.dataframe(
                     filtered.sort_index(ascending=False).style.format({
                         "WTI 유가": "${:.2f}",
