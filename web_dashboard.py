@@ -174,6 +174,7 @@ elif menu == "📦 택배 송장 변환":
                     "주문번호": "Order ID",
                     "받는사람": "Receiver Name",
                     "전화번호1": "Mobile",
+                    "전화번호2": "Mobile",
                     "우편번호": "Zip Code",
                     "주소": "Detailed address",
                     "상품명1": "Product Information",
