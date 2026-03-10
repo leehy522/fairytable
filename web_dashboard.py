@@ -196,46 +196,62 @@ elif menu == "🏭 원가 시뮬레이터":
 elif menu == "📈 시장 지표 분석":
     st.title("📈 실시간 유가 및 환율 모니터링")
     
-    if "market_data" not in st.session_state:
-        st.session_state.market_data = None
-
-    if st.button("📊 최신 데이터 불러오기"):
+    # 1. 데이터 불러오기 및 세션 저장
+    if st.button("📊 최신 데이터 업데이트"):
         with st.spinner('금융 데이터를 가져오는 중...'):
             try:
-                # 1. 데이터 다운로드 (CL=F: 유가, KRW=X: 환율)
-                # 'auto_adjust=True'를 넣어 데이터 누락을 방지합니다.
+                # yfinance를 통해 1년치 데이터 수집
                 raw_data = yf.download(["CL=F", "KRW=X"], period="1y", interval="1d", auto_adjust=True)
-                
-                # 2. Close(종가) 데이터만 추출
                 df = raw_data['Close'].rename(columns={"CL=F": "WTI 유가", "KRW=X": "원/달러 환율"})
-                
-                # 3. 데이터 검증 및 결측치 채우기
-                if df["원/달러 환율"].isnull().all():
-                    st.error("⚠️ 환율 데이터를 가져오지 못했습니다. 잠시 후 다시 시도해주세요.")
-                else:
-                    df = df.ffill().bfill() # 앞뒤로 빈칸을 꽉 채웁니다.
-                    st.session_state.market_data = df
-                    st.success("✅ 최신 데이터를 성공적으로 업데이트했습니다.")
-                    
+                df = df.ffill().bfill() # 결측치 처리
+                st.session_state.market_data = df
+                st.success("✅ 업데이트 완료!")
             except Exception as e:
                 st.error(f"데이터 로딩 오류: {e}")
 
-    # 데이터 출력 로직
-    if st.session_state.market_data is not None:
+    if "market_data" in st.session_state and st.session_state.market_data is not None:
         df = st.session_state.market_data
         
-        c1, c2 = st.columns(2)
-        # 마지막 행의 데이터가 NaN인지 확인 후 안전하게 가져오기
-        current_wti = df["WTI 유가"].dropna().iloc[-1]
-        current_ex = df["원/달러 환율"].dropna().iloc[-1]
-        
-        c1.metric("현재 WTI 유가", f"${current_wti:.2f}")
-        c2.metric("현재 환율", f"₩{current_ex:.2f}")
+        # --- [표 1: 최근 2주치 데이터 고정] ---
+        st.subheader("🗓️ 최근 2주 상세 데이터")
+        recent_2w = df.tail(14).sort_index(ascending=False) # 최근 14일치 역순 정렬
+        st.dataframe(
+            recent_2w.style.format({"WTI 유가": "${:.2f}", "원/달러 환율": "₩{:,.2f}"}),
+            use_container_width=True
+        )
 
-        # 그래프 시각화 (기존 코드와 동일)
-        fig, ax1 = plt.subplots(figsize=(10, 5))
-        ax2 = ax1.twinx()
-        ax1.plot(df.index, df["WTI 유가"], color='tab:blue', label='WTI')
-        ax2.plot(df.index, df["원/달러 환율"], color='tab:red', label='환율', linestyle='--')
-        plt.title("WTI Oil vs USD/KRW Exchange Rate")
-        st.pyplot(fig)
+        # --- [표 2: 기간 검색 기능] ---
+        st.divider()
+        st.subheader("🔍 기간별 데이터 조회")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            start_date = st.date_input("시작일", df.index.min().date()) #
+        with col2:
+            end_date = st.date_input("종료일", df.index.max().date()) #
+
+        if start_date <= end_date:
+            # 날짜 필터링 적용
+            mask = (df.index.date >= start_date) & (df.index.date <= end_date)
+            filtered_df = df.loc[mask].sort_index(ascending=False)
+            
+            if not filtered_df.empty:
+                st.write(f"📊 선택 기간: {start_date} ~ {end_date} (총 {len(filtered_df)}개 데이터)")
+                st.dataframe(
+                    filtered_df.style.format({"WTI 유가": "${:.2f}", "원/달러 환율": "₩{:,.2f}"}),
+                    use_container_width=True
+                )
+                
+                # 선택 기간에 대한 그래프도 함께 표시
+                fig, ax1 = plt.subplots(figsize=(10, 4))
+                ax2 = ax1.twinx()
+                ax1.plot(filtered_df.index, filtered_df["WTI 유가"], color='tab:blue', label='WTI')
+                ax2.plot(filtered_df.index, filtered_df["원/달러 환율"], color='tab:red', label='환율', linestyle='--')
+                ax1.set_ylabel("WTI (USD)", color='tab:blue')
+                ax2.set_ylabel("Exchange (KRW)", color='tab:red')
+                plt.title(f"Market Trends ({start_date} ~ {end_date})")
+                st.pyplot(fig)
+            else:
+                st.warning("해당 기간의 데이터가 존재하지 않습니다.")
+        else:
+            st.error("시작일이 종료일보다 빠를 수 없습니다.")
