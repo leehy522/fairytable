@@ -166,44 +166,18 @@ elif menu == "📦 택배 송장 변환":
             st.info("변환을 시작합니다.")
 
 # --- 메뉴 4: 원가 시뮬레이터 ---
-elif menu == "🏭 원가 시뮬레이터":
-    st.title("🏭 원가 및 규격 시뮬레이터")
-    
-    # [원단 규격 계산기]
-    st.subheader("📏 원단 규격 정밀 계산기")
-    calc_mode = st.radio("계산 모드", ["⚖️ 무게 산출", "🔍 두께 역산"], horizontal=True)
-    c1, c2, c3 = st.columns(3)
-    with c1: v_width = st.number_input("비닐 폭 (mm)", value=630)
-    with c2: v_length = st.number_input("원단 총 길이 (m)", value=1800)
-    
-    res_weight = 0
-    if calc_mode == "⚖️ 무게 산출":
-        with c3: v_thick = st.number_input("두께 (mm)", value=0.009, format="%.3f")
-        res_weight = (v_width/1000) * v_length * 2 * 0.92 * v_thick
-        st.info(f"💡 예상 무게: {res_weight:.2f} kg")
-    else:
-        with c3: v_weight_in = st.number_input("실제 무게 (kg)", value=13.8)
-        res_thick = v_weight_in / ((v_width/1000) * v_length * 2 * 0.92)
-        st.warning(f"💡 역산된 두께: {res_thick:.4f} mm")
-
-    # [원재료 혼합 단가]
-    st.divider()
-    st.subheader("🧪 원재료 혼합 단가 계산")
-    # (기존의 단가 계산 로직 실행)
-    st.metric("최종 제조 원가", "데이터를 입력하세요")
-
-# --- 메뉴 5: 시장 지표 분석 (보강 버전) ---
 elif menu == "📈 시장 지표 분석":
-    st.title("📈 실시간 유가 및 환율 모니터링")
+    st.title("📈 시장 지표 맞춤 조회")
+    st.caption("원하는 기간을 설정하여 유가와 환율 변화를 확인하세요.")
     
-    # 1. 데이터 불러오기 및 세션 저장
-    if st.button("📊 최신 데이터 업데이트"):
-        with st.spinner('금융 데이터를 가져오는 중...'):
+    # 1. 데이터 업데이트 버튼 (최상단 배치)
+    if st.button("🔄 최신 데이터 동기화"):
+        with st.spinner('데이터를 가져오는 중...'):
             try:
-                # yfinance를 통해 1년치 데이터 수집
+                # 1년치 데이터를 미리 가져와서 세션에 저장
                 raw_data = yf.download(["CL=F", "KRW=X"], period="1y", interval="1d", auto_adjust=True)
                 df = raw_data['Close'].rename(columns={"CL=F": "WTI 유가", "KRW=X": "원/달러 환율"})
-                df = df.ffill().bfill() # 결측치 처리
+                df = df.ffill().bfill()
                 st.session_state.market_data = df
                 st.success("✅ 업데이트 완료!")
             except Exception as e:
@@ -212,38 +186,53 @@ elif menu == "📈 시장 지표 분석":
     if "market_data" in st.session_state and st.session_state.market_data is not None:
         df = st.session_state.market_data
         
-        # --- [표 2: 기간 검색 기능] ---
+        # --- [STEP 1: 날짜 설정 (맨 위)] ---
         st.divider()
-        st.subheader("🔍 기간별 데이터 조회")
-        
         col1, col2 = st.columns(2)
         with col1:
-            start_date = st.date_input("시작일", df.index.min().date()) #
+            # 기본값을 최근 2주 전으로 설정하여 편의성을 높였습니다.
+            start_date = st.date_input("📅 조회 시작일", df.index.max().date() - pd.Timedelta(days=14))
         with col2:
-            end_date = st.date_input("종료일", df.index.max().date()) #
+            end_date = st.date_input("📅 조회 종료일", df.index.max().date())
 
-        if start_date <= end_date:
-            # 날짜 필터링 적용
-            mask = (df.index.date >= start_date) & (df.index.date <= end_date)
-            filtered_df = df.loc[mask].sort_index(ascending=False)
+        # 날짜 필터링 적용
+        mask = (df.index.date >= start_date) & (df.index.date <= end_date)
+        filtered_df = df.loc[mask]
+
+        if not filtered_df.empty:
+            # --- [STEP 2: 그래프 배치] ---
+            st.subheader(f"📊 {start_date} ~ {end_date} 추이")
             
-            if not filtered_df.empty:
-                st.write(f"📊 선택 기간: {start_date} ~ {end_date} (총 {len(filtered_df)}개 데이터)")
-                st.dataframe(
-                    filtered_df.style.format({"WTI 유가": "${:.2f}", "원/달러 환율": "₩{:,.2f}"}),
-                    use_container_width=True
-                )
-                
-                # 선택 기간에 대한 그래프도 함께 표시
-                fig, ax1 = plt.subplots(figsize=(10, 4))
-                ax2 = ax1.twinx()
-                ax1.plot(filtered_df.index, filtered_df["WTI 유가"], color='tab:blue', label='WTI')
-                ax2.plot(filtered_df.index, filtered_df["원/달러 환율"], color='tab:red', label='환율', linestyle='--')
-                ax1.set_ylabel("WTI (USD)", color='tab:blue')
-                ax2.set_ylabel("Exchange (KRW)", color='tab:red')
-                plt.title(f"Market Trends ({start_date} ~ {end_date})")
-                st.pyplot(fig)
-            else:
-                st.warning("해당 기간의 데이터가 존재하지 않습니다.")
+            fig, ax1 = plt.subplots(figsize=(10, 4))
+            ax2 = ax1.twinx()
+            
+            # 파란색 실선: WTI, 빨간색 점선: 환율
+            ax1.plot(filtered_df.index, filtered_df["WTI 유가"], color='tab:blue', label='WTI', linewidth=2)
+            ax2.plot(filtered_df.index, filtered_df["원/달러 환율"], color='tab:red', label='환율', linestyle='--', linewidth=2)
+            
+            ax1.set_ylabel("WTI (USD)", color='tab:blue', fontsize=10)
+            ax2.set_ylabel("Exchange (KRW)", color='tab:red', fontsize=10)
+            plt.title(f"Market Trends Analysis", fontsize=12)
+            
+            # 범례 통합 표시
+            lines1, labels1 = ax1.get_legend_handles_labels()
+            lines2, labels2 = ax2.get_legend_handles_labels()
+            ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+            
+            st.pyplot(fig)
+
+            # --- [STEP 3: 세부 데이터 표 배치] ---
+            st.divider()
+            st.subheader(f"📋 세부 데이터 내역 ({len(filtered_df)}건)")
+            # 최신 날짜가 위로 오도록 역순 정렬하여 출력
+            st.dataframe(
+                filtered_df.sort_index(ascending=False).style.format({
+                    "WTI 유가": "${:.2f}", 
+                    "원/달러 환율": "₩{:,.2f}"
+                }),
+                use_container_width=True
+            )
         else:
-            st.error("시작일이 종료일보다 빠를 수 없습니다.")
+            st.warning("선택하신 기간에 해당하는 데이터가 없습니다. 날짜를 다시 확인해 주세요.")
+    else:
+        st.info("먼저 '최신 데이터 동기화' 버튼을 눌러 정보를 불러와 주세요.")
