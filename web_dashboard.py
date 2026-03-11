@@ -242,89 +242,53 @@ elif menu == "🏭 원가 시뮬레이터":
     # (기존의 단가 계산 로직 실행)
     st.metric("최종 제조 원가", "데이터를 입력하세요")
 
-# --- 메뉴 5: 시장 지표 분석 ---
+# --- 메뉴 5: 시장 지표 분석 (초기 복구 버전) ---
 elif menu == "📈 시장 지표 분석":
-    st.title("📈 시장 지표 정밀 분석")
-
-    # --- [STEP 1: 상단 실시간 지표 요약] ---
-    if "market_data" in st.session_state and st.session_state.market_data is not None:
-        df_now = st.session_state.market_data
-        try:
-            # 마지막 유효 값(NaN 제외)을 안전하게 추출합니다.
-            last_wti = df_now["WTI 유가"].dropna().iloc[-1]
-            last_fx = df_now["원/달러 환율"].dropna().iloc[-1]
-            
-            # 전일 대비 변동폭 계산
-            wti_delta = last_wti - df_now["WTI 유가"].dropna().iloc[-2]
-            fx_delta = last_fx - df_now["원/달러 환율"].dropna().iloc[-2]
-
-            col_m1, col_m2 = st.columns(2)
-            with col_m1:
-                st.metric("현재 WTI 국제유가", f"${last_wti:.2f}", f"{wti_delta:+.2f}")
-            with col_m2:
-                st.metric("현재 원/달러 환율", f"₩{last_fx:,.2f}", f"{fx_delta:+.2f}")
-            st.divider()
-        except:
-            pass
-
-    # --- [STEP 2: 데이터 동기화 (개별 호출 방식)] ---
-    if st.button("🔄 최신 데이터 불러오기 (24년 포함 2년치)"):
-        with st.spinner('금융 서버에서 데이터를 정밀하게 가져오는 중...'):
+    st.title("📈 실시간 유가 및 환율 모니터링")
+    st.write("WTI 유가와 원/달러 환율의 1년치 흐름을 실시간으로 가져옵니다.")
+    
+    # 💡 초기 방식: 버튼을 누르면 즉시 yfinance에서 데이터를 내려받습니다.
+    if st.button("📊 최신 데이터 불러오기"):
+        with st.spinner('데이터를 가져오는 중...'):
             try:
-                # 💡 리스트 형태 대신 개별 다운로드로 데이터 꼬임을 방지합니다.
-                # 2024년 전체 데이터 확보를 위해 2y(2년)로 설정합니다.
-                import yfinance as yf
-                wti_raw = yf.download("CL=F", period="2y", interval="1d")['Close']
-                fx_raw = yf.download("KRW=X", period="2y", interval="1d")['Close']
+                # 데이터 심볼 설정 (WTI: CL=F, 환율: KRW=X)
+                symbols = {"WTI 유가": "CL=F", "원/달러 환율": "KRW=X"}
+                df = pd.DataFrame()
                 
-                # 데이터 병합 및 결측치 보정 (주말/휴장일 처리)
-                combined_df = pd.DataFrame({"WTI 유가": wti_raw, "원/달러 환율": fx_raw})
-                combined_df = combined_df.ffill().bfill()
+                for name, sym in symbols.items():
+                    # 기간을 1년(1y)으로 설정하여 안정적으로 가져옵니다.
+                    data = yf.download(sym, period="1y", interval="1d")
+                    df[name] = data['Close']
                 
-                if not combined_df.empty:
-                    st.session_state.market_data = combined_df
-                    st.success("✅ 지표 연동 성공! 이제 기간을 설정해 보세요.")
-                    st.rerun() # 업데이트 후 화면 즉시 갱신
-                else:
-                    st.error("데이터를 가져왔으나 내용이 비어있습니다. 잠시 후 다시 시도해 주세요.")
+                # 빈 값 채우기
+                df = df.ffill()
+
+                # 1. 주요 지표 표시 (Metric)
+                c1, c2 = st.columns(2)
+                c1.metric("현재 WTI 유가", f"${df['WTI 유가'].iloc[-1]:.2f}")
+                c2.metric("현재 환율", f"₩{df['원/달러 환율'].iloc[-1]:.2f}")
+
+                # 2. 이중 축 그래프 시각화 (Matplotlib)
+                fig, ax1 = plt.subplots(figsize=(10, 5))
+                ax2 = ax1.twinx()
+                
+                ax1.plot(df.index, df["WTI 유가"], color='tab:blue', label='WTI', linewidth=2)
+                ax2.plot(df.index, df["원/달러 환율"], color='tab:red', label='환율', linestyle='--', linewidth=2)
+                
+                ax1.set_ylabel("WTI Price (USD)", color='tab:blue')
+                ax2.set_ylabel("Exchange Rate (KRW)", color='tab:red')
+                plt.title("WTI Oil vs USD/KRW Exchange Rate")
+                
+                # 범례 표시
+                lines1, labels1 = ax1.get_legend_handles_labels()
+                lines2, labels2 = ax2.get_legend_handles_labels()
+                ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+                
+                st.pyplot(fig)
+                
+                # 3. 상세 데이터 표 (하단)
+                st.subheader("📋 최근 데이터 상세")
+                st.dataframe(df.tail(10).sort_index(ascending=False), use_container_width=True)
+                
             except Exception as e:
-                st.error(f"⚠️ 데이터 연동 실패: {e}\n(네트워크 연결 상태를 확인하거나 잠시 후 다시 시도해 주세요.)")
-
-    # --- [STEP 3: 기간 설정 및 분석 결과] ---
-    if "market_data" in st.session_state and st.session_state.market_data is not None:
-        df = st.session_state.market_data
-        
-        st.subheader("🔍 조회 기간 설정")
-        col_d1, col_d2 = st.columns(2)
-        with col_d1:
-            # 24년 데이터부터 선택 가능하며, 기본값은 최근 2주입니다.
-            start_date = st.date_input("📅 조회 시작일", df.index.max().date() - pd.Timedelta(days=14))
-        with col_d2:
-            end_date = st.date_input("📅 조회 종료일", df.index.max().date())
-
-        # 선택한 날짜 필터링
-        mask = (df.index.date >= start_date) & (df.index.date <= end_date)
-        filtered_df = df.loc[mask]
-
-        if not filtered_df.empty:
-            # 1. 시각화 그래프
-            fig, ax1 = plt.subplots(figsize=(10, 4))
-            ax2 = ax1.twinx()
-            ax1.plot(filtered_df.index, filtered_df["WTI 유가"], color='tab:blue', label='WTI (USD)', linewidth=2)
-            ax2.plot(filtered_df.index, filtered_df["원/달러 환율"], color='tab:red', label='FX (KRW)', linestyle='--', linewidth=2)
-            ax1.set_ylabel("WTI Price", color='tab:blue')
-            ax2.set_ylabel("Exchange Rate", color='tab:red')
-            plt.title("Market Trends Analysis (2024-2026)")
-            st.pyplot(fig)
-
-            # 2. 접이식 상세 데이터 표
-            with st.expander("📝 상세 데이터 수치 보기 (정확한 금액 확인)", expanded=False):
-                st.dataframe(
-                    filtered_df.sort_index(ascending=False).style.format({
-                        "WTI 유가": "${:.2f}", 
-                        "원/달러 환율": "₩{:,.2f}"
-                    }),
-                    use_container_width=True
-                )
-        else:
-            st.warning("선택하신 기간에 데이터가 없습니다.")
+                st.error(f"데이터 연동 실패: {e}")
