@@ -236,10 +236,6 @@ elif menu == "🏭 원가 시뮬레이터":
         res_thick = v_weight_in / ((v_width/1000) * v_length * 2 * 0.92)
         st.warning(f"💡 역산된 두께: {res_thick:.4f} mm")
 
-   elif menu == "🏭 원가 계산":
-    st.title("🏭 요정비닐 원가 시뮬레이터")
-    st.write("원료 혼합 비율과 원단 규격에 따른 정확한 제조 원가를 산출합니다.")
-    
     # --- [1. 원재료 혼합 단가 계산 로직] ---
     st.subheader("🧪 1. 원재료 혼합 단가 설정")
     
@@ -287,6 +283,7 @@ elif menu == "🏭 원가 시뮬레이터":
         st.metric("예상 원단 무게", f"{total_weight:.2f} kg")
     with col_res2:
         st.metric("1롤당 제조 원가", f"₩{total_cost:,.0f}")
+        
 # --- 메뉴 5: 시장 지표 분석 (초기 복구 버전) ---
 elif menu == "📈 시장 지표 분석":
     st.title("📈 실시간 유가 및 환율 모니터링")
