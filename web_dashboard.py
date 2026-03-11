@@ -215,66 +215,71 @@ elif menu == "📦 택배 송장 변환":
                     )
             except Exception as e:
                 st.error(f"❌ 변환 실패: {e}")
-# --- 메뉴 4: 원가 시뮬레이터 ---
+                
 elif menu == "🏭 원가 시뮬레이터":
     st.title("🏭 원가 및 규격 시뮬레이터")
     
-    # [원단 규격 계산기]
+    # --- [섹션 1: 원단 규격 정밀 계산기] ---
     st.subheader("📏 원단 규격 정밀 계산기")
-    calc_mode = st.radio("계산 모드", ["⚖️ 무게 산출", "🔍 두께 역산"], horizontal=True)
+    # key를 추가하여 하단 위젯과 ID 충돌을 방지합니다.
+    calc_mode = st.radio("계산 모드", ["⚖️ 무게 산출", "🔍 두께 역산"], horizontal=True, key="mode_selector")
+    
     c1, c2, c3 = st.columns(3)
-    with c1: v_width = st.number_input("비닐 폭 (mm)", value=630)
-    with c2: v_length = st.number_input("원단 총 길이 (m)", value=1800)
+    with c1: 
+        v_width = st.number_input("비닐 폭 (mm)", value=630, key="calc_v_width") # key 추가
+    with c2: 
+        v_length = st.number_input("원단 총 길이 (m)", value=1800, key="calc_v_length") # key 추가
     
     res_weight = 0
     if calc_mode == "⚖️ 무게 산출":
-        with c3: v_thick = st.number_input("두께 (mm)", value=0.009, format="%.3f")
+        with c3: 
+            v_thick = st.number_input("두께 (mm)", value=0.009, format="%.3f", key="calc_v_thick")
         res_weight = (v_width/1000) * v_length * 2 * 0.92 * v_thick
         st.info(f"💡 예상 무게: {res_weight:.2f} kg")
     else:
-        with c3: v_weight_in = st.number_input("실제 무게 (kg)", value=13.8)
+        with c3: 
+            v_weight_in = st.number_input("실제 무게 (kg)", value=13.8, key="calc_v_weight_in")
         res_thick = v_weight_in / ((v_width/1000) * v_length * 2 * 0.92)
         st.warning(f"💡 역산된 두께: {res_thick:.4f} mm")
 
-    # --- [1. 원재료 혼합 단가 계산 로직] ---
+    # --- [섹션 2: 원재료 혼합 단가 계산] ---
+    st.divider()
     st.subheader("🧪 1. 원재료 혼합 단가 설정")
     
     col1, col2 = st.columns(2)
     with col1:
-        v_price = st.number_input("신원료 가격 (원/kg)", value=1530) #
-        r_price = st.number_input("재생원료 가격 (원/kg)", value=1300) #
+        v_price = st.number_input("신원료 가격 (원/kg)", value=1530, key="raw_v_price") 
+        r_price = st.number_input("재생원료 가격 (원/kg)", value=1300, key="raw_r_price") 
     with col2:
-        v_ratio = st.slider("신원료 혼합 비율 (%)", 0, 100, 70) #
+        v_ratio = st.slider("신원료 혼합 비율 (%)", 0, 100, 70, key="raw_v_ratio") 
         st.caption(f"신원료 {v_ratio}% : 재생원료 {100-v_ratio}%")
 
     st.write("---")
     col3, col4 = st.columns(2)
     with col3:
-        c_price = st.number_input("조색제 가격 (원/kg)", value=2700) #
+        c_price = st.number_input("조색제 가격 (원/kg)", value=2700, key="raw_c_price") 
     with col4:
-        c_ratio = st.number_input("조색제 혼합 비율 (%)", value=2.5, step=0.1, format="%.1f") #
+        c_ratio = st.number_input("조색제 혼합 비율 (%)", value=2.5, step=0.1, format="%.1f", key="raw_c_ratio") 
 
-    # 💡 핵심 계산식: (신원료혼합가) + (조색제추가비용)
-    # 1. 기초 원료 혼합 단가
+    # 혼합 단가 수식 유지
     base_price = (v_price * (v_ratio / 100)) + (r_price * ((100 - v_ratio) / 100))
-    # 2. 조색제 포함 최종 단가
     final_unit_price = (base_price * (1 - c_ratio/100)) + (c_price * (c_ratio/100))
-    
     st.success(f"🎨 **최종 원재료 단가: ₩{final_unit_price:,.2f} / kg**")
 
-    # --- [2. 원단 규격 및 롤당 가격 계산] ---
+    # --- [섹션 3: 원단 규격 및 롤당 생산 원가] ---
     st.divider()
     st.subheader("📏 2. 원단 규격 및 생산 원가")
     
     c_w1, c_w2, c_w3 = st.columns(3)
     with c_w1:
-        width_mm = st.number_input("비닐 폭 (mm)", value=630) #
+        # 상단과 라벨이 같아도 key가 다르면 에러가 나지 않습니다.
+        width_mm = st.number_input("비닐 폭 (mm)", value=630, key="final_width_mm") 
     with c_w2:
-        length_m = st.number_input("원단 총 길이 (m)", value=1800) #
+        length_m = st.number_input("원단 총 길이 (m)", value=1800, key="final_length_m") 
     with c_w3:
-        thick_mm = st.number_input("비닐 두께 (mm)", value=0.009, step=0.001, format="%.3f") #
+        thick_mm = st.number_input("비닐 두께 (mm)", value=0.009, step=0.001, format="%.3f", key="final_thick_mm") 
 
-    # 💡 원단 무게 계산 공식: (폭m * 길이m * 2 * 비중0.92 * 두께mm)
+    # 무게 및 원가 계산
     total_weight = (width_mm / 1000) * length_m * 2 * 0.92 * thick_mm
     total_cost = total_weight * final_unit_price
 
