@@ -10,8 +10,40 @@ from datetime import datetime
 
 # --- [1. 페이지 기본 설정] ---
 # set_page_config는 반드시 코드의 가장 상단(import 직후)에 한 번만 나와야 합니다.
-st.set_page_config(page_title="요정비닐 스마트 시스템", layout="wide")
+# --- [기존 set_page_config 아래에 추가] ---
 
+# 1. 보안용 비밀번호 설정 (요정비닐 전용)
+# 실제 서비스 시에는 환경 변수(secrets)에 저장하는 것이 안전합니다.
+USER_ID = "lhy"
+USER_PW = "dlghkdud1%" # 윤겸님의 탄생 연도를 넣은 암호 예시입니다.
+
+def check_password():
+    """로그인 성공 시 True를 반환하는 함수"""
+    if "password_correct" not in st.session_state:
+        st.session_state.password_correct = False
+
+    if st.session_state.password_correct:
+        return True
+
+    # 로그인 화면 구성
+    st.title("🔐 요정비닐 스마트 시스템 로그인")
+    input_id = st.text_input("아이디", key="login_id")
+    input_pw = st.text_input("비밀번호", type="password", key="login_pw")
+
+    if st.button("로그인"):
+        if input_id == USER_ID and input_pw == USER_PW:
+            st.session_state.password_correct = True
+            st.rerun() # 로그인 성공 후 화면 갱신
+        else:
+            st.error("❌ 아이디 또는 비밀번호가 일치하지 않습니다.")
+    
+    return False
+
+# 2. 로그인 체크 실행
+if not check_password():
+    st.stop() # 로그인 전에는 이후 코드를 실행하지 않음
+
+# --- [여기서부터 기존 메뉴 로직 시작] ---
 # --- [2. 공통 로직 및 함수 정의] ---
 # (밀크런 관련 함수들: get_pallet_capacity, duplicate_slide, set_bold_text, fill_slide_data는 상단에 정의)
 # (이미 정의된 함수들은 가독성을 위해 생략하며, 실제 코드에는 그대로 유지하시면 됩니다.)
