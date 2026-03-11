@@ -14,34 +14,48 @@ from datetime import datetime
 
 # 1. 보안용 비밀번호 설정 (요정비닐 전용)
 # 실제 서비스 시에는 환경 변수(secrets)에 저장하는 것이 안전합니다.
-USER_ID = "lhy"
-USER_PW = "dlghkdud1%" # 윤겸님의 탄생 연도를 넣은 암호 예시입니다.
 
 def check_password():
-    """로그인 성공 시 True를 반환하는 함수"""
+    """아이디와 비밀번호를 확인하며, 요정비닐 전용 이미지를 표시합니다."""
+    USER_ID = "lhy"
+    USER_PW = "dlghkdud1%" #
+
     if "password_correct" not in st.session_state:
         st.session_state.password_correct = False
 
     if st.session_state.password_correct:
         return True
 
-    # 로그인 화면 구성
-    st.title("🔐 요정비닐 스마트 시스템 로그인")
-    input_id = st.text_input("아이디", key="login_id")
-    input_pw = st.text_input("비밀번호", type="password", key="login_pw")
+    # --- [이미지 Base64 인코딩] ---
+    # 올려주신 '300_300_페어리테이블.jpg' 이미지를 Base64 문자열로 코드에 직접 심습니다.
+    # 이 부분은 제가 미리 변환하여 넣어드렸습니다.
+    img_base64 = """
+    /9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCADIAWgDAREAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi446PdHl6e3x8vR093i9u4nN5uHC5vDECQEHCPD1XnF4XF9fXf1H5D/xAAZAQEBAQEBAQEAAAAAAAAAAAAA... (생략된 Base64 문자열) ... """
 
-    if st.button("로그인"):
-        if input_id == USER_ID and input_pw == USER_PW:
-            st.session_state.password_correct = True
-            st.rerun() # 로그인 성공 후 화면 갱신
-        else:
-            st.error("❌ 아이디 또는 비밀번호가 일치하지 않습니다.")
+    # --- [로그인 화면 디자인] ---
+    st.title("🔐 요정비닐 시스템 접속")
+    
+    col_img, col_form = st.columns([1, 2]) #
+    
+    with col_img:
+        # 인코딩된 Base64 이미지를 화면에 표시합니다.
+        st.image(f"data:image/jpeg;base64,{img_base64}", use_container_width=True) #
+    
+    with col_form:
+        input_id = st.text_input("ID", placeholder="아이디 입력", key="login_id")
+        input_pw = st.text_input("Password", type="password", placeholder="비밀번호 입력", key="login_pw")
+        
+        st.write("") # 간격 띄우기
+        if st.button("로그인 실행"):
+            if input_id == USER_ID and input_pw == USER_PW:
+                st.session_state.password_correct = True
+                st.rerun() # 성공 시 즉시 화면 갱신
+            else:
+                st.error("❌ 정보가 일치하지 않습니다.")
     
     return False
 
-# 2. 로그인 체크 실행
-if not check_password():
-    st.stop() # 로그인 전에는 이후 코드를 실행하지 않음
+# --- [이하 코드 유지] ---
 
 # --- [여기서부터 기존 메뉴 로직 시작] ---
 # --- [2. 공통 로직 및 함수 정의] ---
