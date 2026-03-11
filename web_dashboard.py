@@ -236,12 +236,57 @@ elif menu == "🏭 원가 시뮬레이터":
         res_thick = v_weight_in / ((v_width/1000) * v_length * 2 * 0.92)
         st.warning(f"💡 역산된 두께: {res_thick:.4f} mm")
 
-    # [원재료 혼합 단가]
-    st.divider()
-    st.subheader("🧪 원재료 혼합 단가 계산")
-    # (기존의 단가 계산 로직 실행)
-    st.metric("최종 제조 원가", "데이터를 입력하세요")
+   elif menu == "🏭 원가 계산":
+    st.title("🏭 요정비닐 원가 시뮬레이터")
+    st.write("원료 혼합 비율과 원단 규격에 따른 정확한 제조 원가를 산출합니다.")
+    
+    # --- [1. 원재료 혼합 단가 계산 로직] ---
+    st.subheader("🧪 1. 원재료 혼합 단가 설정")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        v_price = st.number_input("신원료 가격 (원/kg)", value=1530) #
+        r_price = st.number_input("재생원료 가격 (원/kg)", value=1300) #
+    with col2:
+        v_ratio = st.slider("신원료 혼합 비율 (%)", 0, 100, 70) #
+        st.caption(f"신원료 {v_ratio}% : 재생원료 {100-v_ratio}%")
 
+    st.write("---")
+    col3, col4 = st.columns(2)
+    with col3:
+        c_price = st.number_input("조색제 가격 (원/kg)", value=2700) #
+    with col4:
+        c_ratio = st.number_input("조색제 혼합 비율 (%)", value=2.5, step=0.1, format="%.1f") #
+
+    # 💡 핵심 계산식: (신원료혼합가) + (조색제추가비용)
+    # 1. 기초 원료 혼합 단가
+    base_price = (v_price * (v_ratio / 100)) + (r_price * ((100 - v_ratio) / 100))
+    # 2. 조색제 포함 최종 단가
+    final_unit_price = (base_price * (1 - c_ratio/100)) + (c_price * (c_ratio/100))
+    
+    st.success(f"🎨 **최종 원재료 단가: ₩{final_unit_price:,.2f} / kg**")
+
+    # --- [2. 원단 규격 및 롤당 가격 계산] ---
+    st.divider()
+    st.subheader("📏 2. 원단 규격 및 생산 원가")
+    
+    c_w1, c_w2, c_w3 = st.columns(3)
+    with c_w1:
+        width_mm = st.number_input("비닐 폭 (mm)", value=630) #
+    with c_w2:
+        length_m = st.number_input("원단 총 길이 (m)", value=1800) #
+    with c_w3:
+        thick_mm = st.number_input("비닐 두께 (mm)", value=0.009, step=0.001, format="%.3f") #
+
+    # 💡 원단 무게 계산 공식: (폭m * 길이m * 2 * 비중0.92 * 두께mm)
+    total_weight = (width_mm / 1000) * length_m * 2 * 0.92 * thick_mm
+    total_cost = total_weight * final_unit_price
+
+    col_res1, col_res2 = st.columns(2)
+    with col_res1:
+        st.metric("예상 원단 무게", f"{total_weight:.2f} kg")
+    with col_res2:
+        st.metric("1롤당 제조 원가", f"₩{total_cost:,.0f}")
 # --- 메뉴 5: 시장 지표 분석 (초기 복구 버전) ---
 elif menu == "📈 시장 지표 분석":
     st.title("📈 실시간 유가 및 환율 모니터링")
@@ -257,7 +302,7 @@ elif menu == "📈 시장 지표 분석":
                 
                 for name, sym in symbols.items():
                     # 기간을 1년(1y)으로 설정하여 안정적으로 가져옵니다.
-                    data = yf.download(sym, period="1y", interval="1d")
+                    data = yf.download(sym, period="2y", interval="1d")
                     df[name] = data['Close']
                 
                 # 빈 값 채우기
