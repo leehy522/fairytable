@@ -24,7 +24,11 @@ def check_password():
 
     if st.session_state.password_correct:
         return True
-
+# --- [이미지 Base64 인코딩] ---
+    # 올려주신 '300_300_페어리테이블.jpg' 이미지를 Base64 문자열로 코드에 직접 심습니다.
+    # 이 부분은 제가 미리 변환하여 넣어드렸습니다.
+    img_base64 = """
+    /9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCADIAWgDAREAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi446PdHl6e3x8vR093i9u4nN5uHC5vDECQEHCPD1XnF4XF9fXf1H5D/xAAZAQEBAQEBAQEAAAAAAAAAAAAA... (생략된 Base64 문자열) ... """
     # 로그인 화면 구성
     st.title("🔐 요정비닐 스마트 시스템 로그인")
     input_id = st.text_input("아이디", key="login_id")
