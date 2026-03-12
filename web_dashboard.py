@@ -59,7 +59,20 @@ if not check_password():
 
 # --- [3. 공통 로직 및 함수 정의] ---
 # (여기서부터 기존 버전 1의 get_pallet_capacity 등 함수들이 이어집니다)
-# --- [이하 코드 유지] ---
+def get_pallet_capacity(sku):
+    sku = str(sku)
+    # 요정비닐 주요 품목별 적재량 설정
+    if sku in ['32058611', '15651222']: return 300
+    if sku in ['29558294', '32711887']: return 192
+    if sku == '32083343': return 400
+    if sku == '32366753': return 560
+    return 300
+    
+for m_sku in sku_matches:
+    sku = m_sku.group(1)
+    if sku in processed: continue
+
+tot_plt = (qty // cap) + (1 if qty % cap > 0 else 0)
 
 # --- [여기서부터 기존 메뉴 로직 시작] ---
 # --- [2. 공통 로직 및 함수 정의] ---
