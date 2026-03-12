@@ -260,14 +260,17 @@ elif menu == "🚚 밀크런 PPT 변환":
 if st.button("🚀 지능형 합짐 및 PPT 생성"):
                 try:
                     prs = Presentation(tpl_file)
-                    # 기존 슬라이드 정리 로직 생략 (v1.2와 동일)
+                    # (슬라이드 초기화 로직은 기존과 동일)
                     
                     is_first = True
-                    # 1. 💡 센터별로 그룹화하여 합짐 데이터를 생성합니다.
-                    # 발주번호가 달라도 '센터'가 같으면 한 그룹으로 묶입니다.
+                    # 1. 센터별로 그룹화 (발주번호가 달라도 센터가 같으면 한 그룹)
                     for center, group in edited_df.groupby("센터"):
                         
-                        # 2. 이 그룹(같은 센터)의 모든 품목을 하나의 리스트에 담습니다.
+                        # 💡 [여기서부터가 핵심 삽입 위치입니다!]
+                        # 이 센터 그룹에 포함된 모든 고유 발주번호를 추출하여 쉼표로 연결합니다.
+                        po_list = sorted([str(po) for po in group["발주번호"].unique()])
+                        all_po_nums = ", ".join(po_list) 
+                        
                         mixed_items = []
                         total_qty_sum = 0
                         for _, row in group.iterrows():
@@ -275,7 +278,7 @@ if st.button("🚀 지능형 합짐 및 PPT 생성"):
                             
                             mixed_items.append({
                                 'sku': row['SKU'],
-                                # 발주번호를 상품명 앞에 나란히 표기하여 검수 편의성 증대
+                                # 개별 상품명 앞에도 발주번호를 나란히 표시
                                 'name': f"[{row['발주번호']}] {row['상품명']}", 
                                 'qty': int(row['확정수량'])
                             })
@@ -283,11 +286,9 @@ if st.button("🚀 지능형 합짐 및 PPT 생성"):
                         
                         if not mixed_items: continue
 
-                        # 3. 묶인 품목들을 팔레트 분할 규칙에 따라 슬라이드로 생성
-                        # 적재량은 해당 그룹 내 품목 중 하나를 기준으로 잡습니다.
+                        # 2. 통합 수량 기준 팔레트 계산 (v4.98 로직)
                         cap = int(group["적재량"].iloc[0]) 
                         tot_plt = (total_qty_sum // cap) + (1 if total_qty_sum % cap > 0 else 0)
-                        
                         y, m, d = group["date"].iloc[0].split('-')
                         
                         for i in range(1, tot_plt + 1):
@@ -295,14 +296,14 @@ if st.button("🚀 지능형 합짐 및 PPT 생성"):
                                 'no': f"{tot_plt}-{i}", 
                                 'total_qty': total_qty_sum, 
                                 'cap': cap, 
-                                'items_list': mixed_items # 💡 여기에 여러 발주번호 품목이 나란히 들어감
+                                'items_list': mixed_items
                             }
-                            # 한 팔레트당 2장씩 생성 루틴
                             for _ in range(2):
                                 slide = prs.slides[0] if is_first else duplicate_slide(prs, 0)
                                 is_first = False
-                                # 발주번호 자리에는 '혼합발주' 또는 대표번호 표기
-                                fill_slide_data(slide, p_info, "혼합(Mixed)", center, y, m, d)
+                                # 💡 "혼합" 대신 위에서 만든 all_po_nums(모든 발주번호)를 전달합니다!
+                                fill_slide_data(slide, p_info, all_po_nums, center, y, m, d)
+                                
                     ppt_out = io.BytesIO()
                     prs.save(ppt_out)
                     st.download_button("📥 최종 PPT 다운로드", ppt_out.getvalue(), "밀크런_v4.98_결과.pptx")
