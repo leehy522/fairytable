@@ -185,70 +185,72 @@ if menu == "🏷️ 요정비닐 상품 현황":
     else:
         st.error("데이터를 불러올 수 없습니다. 구글 시트의 '웹에 게시' 설정을 확인해주세요.")
 
-elif menu == "🚚 밀크런 PPT 변환":
+elif menu == "🚚 밀크런 변환":
     st.title("🚚 밀크런 통합 편집 시스템 (v4.98 로직 이식)")
     
-    # 1. 파일 업로드 구역
     tpl_file = st.file_uploader("1. 양식 PPT 업로드", type=['pptx'])
     pdf_files = st.file_uploader("2. 발주서 PDF 업로드 (다중 선택)", type=['pdf'], accept_multiple_files=True)
 
     if tpl_file and pdf_files:
-        # 세션 초기화
-        if "extracted_data" not in st.session_state: 
+        # 데이터 리스트 초기화 관리
+        if "extracted_data" not in st.session_state:
             st.session_state.extracted_data = []
 
-        # 2. 발주서 분석 버튼
+        # 💡 분석 버튼 클릭 시 이전 데이터를 비우고 새로 시작하도록 수정
         if st.button("🔍 발주서 데이터 정밀 분석"):
             all_extracted = []
             for pdf_file in pdf_files:
                 reader = pypdf.PdfReader(pdf_file)
-                text = "".join([page.extract_text() + "\n" for page in reader.pages])
-                
-                # v4.98 정밀 정규식 적용
-                po_num = (re.search(r"(?:발주번호|PO|no|Info)\s*[:\s\n]*(\d{9})", text, re.I) or 
-                          re.search(r"(\d{9})", text) or ["000000000"])[0]
-                fc_match = re.search(r"(?:FC명|FC\s*Name|센터명)\s*[:\s\n]*([A-Z0-9가-힣]+)", text, re.I) or \
-                           re.search(r"([가-힣]+)센터", text)
-                fc_name = fc_match.group(1).strip() if fc_match else "알수없음"
-                date_match = re.search(r"(\d{4}-\d{2}-\d{2})", text)
-                date_raw = date_match.group(1) if date_match else "2026-03-12"
-                
-                sku_matches = list(re.finditer(r"\b(\d{8})\b", text))
-                processed = set()
-                for m in sku_matches:
-                    sku = m.group(1)
-                    if sku in processed: continue
-                    cap = get_pallet_capacity(sku)
-                    block = text[m.end():m.end()+450]
-                    name_search = re.search(r"([가-힣]{2,}[가-힣\s\d\-\(\)]+)", block)
-                    real_name = name_search.group(1).strip() if name_search else "상품명확인"
-                    nums = re.findall(r"\b\d{1,4}\b", block)
-                    qty = int(nums[1]) if len(nums) >= 2 else (int(nums[0]) if len(nums) == 1 else 0)
+                # 페이지별 독립 분석으로 발주번호 누락 방지
+                for page in reader.pages:
+                    text = page.extract_text() + "\n"
+                    po_match = (re.search(r"(?:발주번호|PO|no|Info)\s*[:\s\n]*(\d{9})", text, re.I) or 
+                                re.search(r"(\d{9})", text))
+                    if not po_match: continue
                     
-                    if qty > 0:
-                        all_extracted.append({
-                            "발주번호": po_num, "센터": fc_name, "SKU": sku, 
-                            "상품명": real_name[:40], "확정수량": qty, "적재량": cap, "date": date_raw
-                        })
-                        processed.add(sku)
+                    po_num = po_match.group(1) if hasattr(po_match, 'group') else po_match[0]
+                    fc_match = re.search(r"(?:FC명|FC\s*Name|센터명)\s*[:\s\n]*([A-Z0-9가-힣]+)", text, re.I) or \
+                               re.search(r"([가-힣]+)센터", text)
+                    fc_name = fc_match.group(1).strip() if fc_match else "알수없음"
+                    date_match = re.search(r"(\d{4}-\d{2}-\d{2})", text)
+                    date_raw = date_match.group(1) if date_match else "2026-03-12"
+                    
+                    sku_matches = list(re.finditer(r"\b(\d{8})\b", text))
+                    processed_in_page = set()
+                    for m in sku_matches:
+                        sku = m.group(1)
+                        if sku in processed_in_page: continue
+                        cap = get_pallet_capacity(sku)
+                        block = text[m.end():m.end()+450]
+                        name_search = re.search(r"([가-힣]{2,}[가-힣\s\d\-\(\)]+)", block)
+                        real_name = name_search.group(1).strip() if name_search else "상품명확인"
+                        nums = re.findall(r"\b\d{1,4}\b", block)
+                        qty = int(nums[1]) if len(nums) >= 2 else (int(nums[0]) if len(nums) == 1 else 0)
+                        
+                        if qty > 0:
+                            all_extracted.append({
+                                "발주번호": po_num, "센터": fc_name, "SKU": sku, 
+                                "상품명": real_name[:40], "확정수량": qty, "적재량": cap, "date": date_raw
+                            })
+                            processed_in_page.add(sku)
             st.session_state.extracted_data = all_extracted
             st.rerun()
 
-        # 3. 통합 편집 및 PPT 생성 구역
+        # 편집 및 PPT 생성 로직
         if st.session_state.extracted_data:
             st.subheader("📊 발주 데이터 통합 편집")
             edited_df = st.data_editor(pd.DataFrame(st.session_state.extracted_data), num_rows="dynamic", use_container_width=True)
 
-            if st.button("🚀 지능형 합짐 및 PPT 생성 시작"):
+            if st.button("🚀 지능형 합짐 및 PPT 생성"):
                 try:
                     prs = Presentation(tpl_file)
-                    # 슬라이드 초기화 (v4.98 방식)
+                    # 💡 슬라이드 초기화: 첫 번째 양식만 남기고 싹 비웁니다.
                     while len(prs.slides) > 1:
                         rId = prs.slides._sle[1].rId
                         prs.part.drop_rel(rId); del prs.slides._sle[1]
                     
                     is_first = True
-                    # 센터별 그룹화 및 다중 발주번호 수집 로직
+                    # 센터별 그룹화 (v4.98 핵심 로직)
                     for center, group in edited_df.groupby("센터"):
                         po_list = sorted([str(p) for p in group["발주번호"].unique()])
                         all_pos = ", ".join(po_list)
@@ -262,22 +264,27 @@ elif menu == "🚚 밀크런 PPT 변환":
                         
                         if not mixed_items: continue
                         cap = int(group["적재량"].iloc[0])
+                        # 팔레트 수량 계산 (v4.98 정밀 공식)
                         tot_plt = (total_qty_sum // cap) + (1 if total_qty_sum % cap > 0 else 0)
                         y, m, d = group["date"].iloc[0].split('-')
                         
                         for i in range(1, tot_plt + 1):
                             p_info = {'no': f"{tot_plt}-{i}", 'total_qty': total_qty_sum, 'cap': cap, 'items_list': mixed_items}
-                            for _ in range(2): # 한 팔레트당 2장씩 생성 규칙
-                                slide = prs.slides[0] if is_first else duplicate_slide(prs, 0)
-                                is_first = False
+                            # 💡 한 팔레트당 2장씩 생성 (요정비닐 출력 규칙)
+                            for _ in range(2):
+                                if is_first:
+                                    slide = prs.slides[0]
+                                    is_first = False
+                                else:
+                                    slide = duplicate_slide(prs, 0)
                                 fill_slide_data(slide, p_info, all_pos, center, y, m, d)
 
                     ppt_out = io.BytesIO()
                     prs.save(ppt_out)
-                    st.download_button("📥 최종 PPT 다운로드", ppt_out.getvalue(), "밀크런_통합_결과.pptx")
-                    st.success(f"✨ 완료! 총 {len(prs.slides)}장의 슬라이드가 생성되었습니다.")
+                    st.download_button("📥 최종 PPT 다운로드", ppt_out.getvalue(), "밀크런_통합결과.pptx")
+                    st.success(f"✨ 완료! {len(prs.slides)}장의 슬라이드가 생성되었습니다.")
                 except Exception as e:
-                    st.error(f"오류: {e}")
+                    st.error(f"PPT 생성 에러: {e}")
                     
 # --- 메뉴 3: 택배 송장 변환 ---
 elif menu == "📦 택배 송장 변환":
