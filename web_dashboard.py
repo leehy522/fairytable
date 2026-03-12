@@ -197,16 +197,18 @@ elif menu == "🚚 밀크런 PPT 변환":
             st.session_state.extracted_data = []
 
         # 💡 분석 버튼 클릭 시 이전 데이터를 비우고 새로 시작하도록 수정
-        if st.button("🔍 발주서 데이터 정밀 분석"):
+        if st.button("🔍 발주서 데이터 정밀 분석 (홀수 장 전용)"):
             all_extracted = []
             for pdf_file in pdf_files:
                 reader = pypdf.PdfReader(pdf_file)
-                # 페이지별 독립 분석으로 발주번호 누락 방지
-                for page in reader.pages:
+                
+                # 💡 enumerate를 사용하여 페이지 번호(i)를 가져옵니다.
+                # 파이썬은 0부터 시작하므로 0, 2, 4... 가 실제 1, 3, 5페이지(홀수 장)입니다.
+                for i, page in enumerate(reader.pages):
+                    if i % 2 != 0: 
+                        continue # 짝수 장(index 1, 3, 5...)은 건너뜁니다.
+
                     text = page.extract_text() + "\n"
-                    po_match = (re.search(r"(?:발주번호|PO|no|Info)\s*[:\s\n]*(\d{9})", text, re.I) or 
-                                re.search(r"(\d{9})", text))
-                    if not po_match: continue
                     
                     po_num = po_match.group(1) if hasattr(po_match, 'group') else po_match[0]
                     fc_match = re.search(r"(?:FC명|FC\s*Name|센터명)\s*[:\s\n]*([A-Z0-9가-힣]+)", text, re.I) or \
