@@ -249,7 +249,7 @@ elif menu == "🚚 밀크런 PPT 변환":
             st.subheader("📊 발주 데이터 통합 편집")
             edited_df = st.data_editor(pd.DataFrame(st.session_state.extracted_data), num_rows="dynamic", use_container_width=True)
 
-            if st.button("🚀 지능형 합짐 및 PPT 생성"):
+        if st.button("🚀 지능형 합짐 및 PPT 생성"):
                 try:
                     prs = Presentation(tpl_file)
                     # 슬라이드 초기화
