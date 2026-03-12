@@ -100,7 +100,7 @@ def fill_slide_data(slide, p, po_num, fc_name, year, month, day):
             
             # 3. 고정 업체명 입력
             elif "업체명" in txt:
-                tf.text = "업체명         (   주식회사 페어리드림    )"
+                set_bold_text(tf.text = "업체명         (   주식회사 페어리드림    )")
             
             # 4. 발주번호 입력
             elif "발주번호" in txt:
@@ -110,15 +110,27 @@ def fill_slide_data(slide, p, po_num, fc_name, year, month, day):
         if shape.has_table:
             table = shape.table
             try:
+                # 💡 리스트에 담긴 개별 품목(item) 정보를 하나씩 꺼내어 표에 입력합니다.
                 for idx, item in enumerate(p['items_list']):
                     row_idx = idx + 1 
-                    if row_idx >= len(table.rows): break
+                    if row_idx >= len(table.rows): break # 표의 칸을 넘어가면 중단
+                    
+                    # 1. SKU 번호 입력
                     set_bold_text(table.cell(row_idx, 1).text_frame, item['sku'], False)
-                    set_bold_text(table.cell(row_idx, 2).text_frame, item['name'], False, font_size=11)
-                    set_bold_text(table.cell(row_idx, 3).text_frame, str(display_qty), False)
-                    set_bold_text(table.cell(row_idx, 4).text_frame, str(display_qty), False)
-                    table.cell(row_idx, 5).text = f"-\n/{year}.{int(month)}.{int(day)}"
-            except: pass
+                    # 2. 상품명 입력
+                    set_bold_text(table.cell(row_idx, 2).text_frame, item['name'], False, font_size=12)
+                    
+                    # 💡 [핵심 수정] 각 품목별 실제 확정 수량(item['qty'])을 직접 입력합니다.
+                    # 기존의 전체 합계인 display_qty 대신 개별 수량을 사용합니다.
+                    each_qty = str(item['qty']) 
+                    
+                    set_bold_text(table.cell(row_idx, 3).text_frame, each_qty, False) # 발주수량 칸
+                    set_bold_text(table.cell(row_idx, 4).text_frame, each_qty, False) # 입고확인 칸
+                    
+                    # 3. 비고란에 날짜 표기
+                    table.cell(row_idx, 5).text = f"-\n/{year}.{int(month)}.{int(day-1)}"
+            except Exception as e:
+                pass
                 
 @st.cache_data(ttl=60)
 def load_google_sheet_data():
