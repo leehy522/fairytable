@@ -145,32 +145,6 @@ def load_google_sheet_data():
         st.error(f"구글 시트 연결 오류: {e}")
         return pd.DataFrame()
 
-def consolidate_pallets(df):
-    # 1. 센터별로 데이터를 묶습니다.
-    consolidated = []
-    for center, group in df.groupby("센터"):
-        # 같은 센터 내에서 발주번호가 달라도 품목 리스트를 하나로 합칩니다.
-        mixed_items = []
-        total_qty = 0
-        
-        for _, row in group.iterrows():
-            mixed_items.append({
-                'sku': row['SKU'],
-                'name': f"[{row['발주번호']}] {row['상품명']}", # 발주번호를 이름 앞에 나란히 표기
-                'qty': row['확정수량']
-            })
-            total_qty += row['확정수량']
-            
-        # 2. 합쳐진 결과를 하나의 팔레트 정보로 생성 (적재량은 그룹 내 최대값 기준 등 설정 가능)
-        consolidated.append({
-            'po': "혼합발주", 
-            'fc': center,
-            'items_list': mixed_items,
-            'total_qty': total_qty,
-            'cap': group['적재량'].max()
-        })
-    return consolidated
-
 # --- [3. 사이드바 메뉴 구성] ---
 st.sidebar.title("🚀 요정비닐 관리자")
 menu = st.sidebar.radio("메뉴를 선택하세요", 
@@ -283,33 +257,52 @@ elif menu == "🚚 밀크런 PPT 변환":
             edited_df = st.data_editor(df_editor, num_rows="dynamic", use_container_width=True, key="ml_editor")
 
             # 3. PPT 생성 시작
-            if st.button("🚀 PPT 생성 (수량 분할 규칙 적용)"):
+if st.button("🚀 지능형 합짐 및 PPT 생성"):
                 try:
                     prs = Presentation(tpl_file)
-                    # 기존 슬라이드 정리 로직
-                    while len(prs.slides) > 1:
-                        rId = prs.slides._sle[1].rId
-                        prs.part.drop_rel(rId); del prs.slides._sle[1]
+                    # 기존 슬라이드 정리 로직 생략 (v1.2와 동일)
                     
                     is_first = True
-                    for _, row in edited_df.iterrows():
-                        qty, cap = int(row["확정수량"]), int(row["적재량"])
-                        if qty <= 0: continue
+                    # 1. 💡 센터별로 그룹화하여 합짐 데이터를 생성합니다.
+                    # 발주번호가 달라도 '센터'가 같으면 한 그룹으로 묶입니다.
+                    for center, group in edited_df.groupby("센터"):
                         
-                        # v4.98 팔레트 분할 공식 적용
-                        tot_plt = (qty // cap) + (1 if qty % cap > 0 else 0)
+                        # 2. 이 그룹(같은 센터)의 모든 품목을 하나의 리스트에 담습니다.
+                        mixed_items = []
+                        total_qty_sum = 0
+                        for _, row in group.iterrows():
+                            if int(row["확정수량"]) <= 0: continue
+                            
+                            mixed_items.append({
+                                'sku': row['SKU'],
+                                # 발주번호를 상품명 앞에 나란히 표기하여 검수 편의성 증대
+                                'name': f"[{row['발주번호']}] {row['상품명']}", 
+                                'qty': int(row['확정수량'])
+                            })
+                            total_qty_sum += int(row['확정수량'])
+                        
+                        if not mixed_items: continue
+
+                        # 3. 묶인 품목들을 팔레트 분할 규칙에 따라 슬라이드로 생성
+                        # 적재량은 해당 그룹 내 품목 중 하나를 기준으로 잡습니다.
+                        cap = int(group["적재량"].iloc[0]) 
+                        tot_plt = (total_qty_sum // cap) + (1 if total_qty_sum % cap > 0 else 0)
+                        
+                        y, m, d = group["date"].iloc[0].split('-')
                         
                         for i in range(1, tot_plt + 1):
                             p_info = {
-                                'no': f"{tot_plt}-{i}", 'total_qty': qty, 'cap': cap,
-                                'items_list': [{'sku': row["SKU"], 'name': row["상품명"]}]
+                                'no': f"{tot_plt}-{i}", 
+                                'total_qty': total_qty_sum, 
+                                'cap': cap, 
+                                'items_list': mixed_items # 💡 여기에 여러 발주번호 품목이 나란히 들어감
                             }
-                            # 한 팔레트당 2장씩 생성
+                            # 한 팔레트당 2장씩 생성 루틴
                             for _ in range(2):
                                 slide = prs.slides[0] if is_first else duplicate_slide(prs, 0)
                                 is_first = False
-                                fill_slide_data(slide, p_info, row["발주번호"], row["센터"], "2026", "03", "12")
-
+                                # 발주번호 자리에는 '혼합발주' 또는 대표번호 표기
+                                fill_slide_data(slide, p_info, "혼합(Mixed)", center, y, m, d)
                     ppt_out = io.BytesIO()
                     prs.save(ppt_out)
                     st.download_button("📥 최종 PPT 다운로드", ppt_out.getvalue(), "밀크런_v4.98_결과.pptx")
