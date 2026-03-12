@@ -88,7 +88,7 @@ def fill_slide_data(slide, p, po_num, fc_name, year, month, day):
             txt = shape.text
             if "박스수량" in txt or "BOX" in txt:
                 set_bold_text(tf, f"{p['no']} / 총 박스수량  ({p['total_qty']} BOX)", True)
-            elif "입고예정일자" in txt or "납품센터명" in txt:
+            elif "입고예정일자" in txt or "납품센터명" or "FC Name" in txt:
                 set_bold_text(tf, f"입고예정일자 ({int(month)}월 {int(day)}일) / 납품센터명 ({fc_name} 센터)", True)
             elif "업체명" in txt:
                 tf.text = "업체명         (   주식회사 페어리드림    )"
@@ -185,31 +185,47 @@ elif menu == "🚚 밀크런 PPT 변환":
         if "extracted_data" not in st.session_state:
             st.session_state.extracted_data = []
 
-        if st.button("🔍 발주서 데이터 분석"):
+     if st.button("🔍 발주서 데이터 정밀 분석"):
             all_extracted = []
             for pdf_file in pdf_files:
                 reader = pypdf.PdfReader(pdf_file)
                 text = ""
                 for page in reader.pages: text += page.extract_text() + "\n"
                 
-                # 데이터 파싱 (v4.98 정규식 이식)
-                po_num = (re.search(r"(\d{9})", text) or ["000000000"])[0]
-                fc_name = (re.search(r"([가-힣]+)센터", text) or ["알수없음"])[0]
+                # 1. 발주번호 및 센터명 추출 (v4.98 정밀 로직)
+                po_num = (re.search(r"(?:발주번호|PO|no|Info)\s*[:\s\n]*(\d{9})", text, re.I) or re.search(r"(\d{9})", text) or ["000000000"])[0]
+                fc_match = re.search(r"(?:FC명|FC\s*Name|센터명)\s*[:\s\n]*([A-Z0-9가-힣]+)", text, re.I) or re.search(r"([가-힣]+)센터", text)
+                fc_name = fc_match.group(1).strip() if fc_match else "알수없음"
+                
+                # 2. 날짜 추출
+                date_match = re.search(r"(\d{4}-\d{2}-\d{2})", text)
+                date_raw = date_match.group(1) if date_match else "2026-03-12"
                 
                 sku_matches = list(re.finditer(r"\b(\d{8})\b", text))
                 processed = set()
                 for m in sku_matches:
                     sku = m.group(1)
                     if sku in processed: continue
-                    cap = get_pallet_capacity(sku)
-                    # 수량 추출 로직
-                    block = text[m.end():m.end()+100]
-                    qty = int(re.findall(r"\b\d{1,4}\b", block)[1]) if len(re.findall(r"\b\d{1,4}\b", block)) > 1 else 0
                     
+                    # 3. 상품명 정밀 추출 (여기가 핵심입니다!)
+                    cap = get_pallet_capacity(sku)
+                    block = text[m.end():m.end()+450]
+                    name_search = re.search(r"([가-힣]{2,}[가-힣\s\d\-\(\)]+)", block)
+                    real_name = name_search.group(1).strip() if name_search else "상품명확인"
+                    
+                    # 4. 수량 추출
+                    nums = re.findall(r"\b\d{1,4}\b", block)
+                    qty = int(nums[1]) if len(nums) >= 2 else (int(nums[0]) if len(nums) == 1 else 0)
+                    
+                    # 💡 "추출된 상품명" 대신 위에서 찾은 real_name을 직접 넣어줍니다.
                     all_extracted.append({
-                        "발주번호": po_num, "센터": fc_name, "SKU": sku, 
-                        "상품명": "추출된 상품명", "확정수량": qty, "적재량": cap,
-                        "date": "2026-03-12" # 기본 날짜
+                        "발주번호": po_num, 
+                        "센터": fc_name, 
+                        "SKU": sku, 
+                        "상품명": real_name[:40], # 실제 이름을 40자까지 호출
+                        "확정수량": qty, 
+                        "적재량": cap, 
+                        "date": date_raw
                     })
                     processed.add(sku)
             st.session_state.extracted_data = all_extracted
