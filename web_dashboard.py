@@ -110,25 +110,26 @@ def fill_slide_data(slide, p, po_num, fc_name, year, month, day):
         if shape.has_table:
             table = shape.table
             try:
-                # 💡 리스트에 담긴 개별 품목(item) 정보를 하나씩 꺼내어 표에 입력합니다.
+                # 💡 합쳐진 품목 리스트(items_list)를 하나씩 꺼내어 표의 행(Row)에 채웁니다.
                 for idx, item in enumerate(p['items_list']):
                     row_idx = idx + 1 
                     if row_idx >= len(table.rows): break # 표의 칸을 넘어가면 중단
                     
                     # 1. SKU 번호 입력
                     set_bold_text(table.cell(row_idx, 1).text_frame, item['sku'], False)
-                    # 2. 상품명 입력
-                    set_bold_text(table.cell(row_idx, 2).text_frame, item['name'], False, font_size=12)
                     
-                    # 💡 [핵심 수정] 각 품목별 실제 확정 수량(item['qty'])을 직접 입력합니다.
-                    # 기존의 전체 합계인 display_qty 대신 개별 수량을 사용합니다.
-                    each_qty = str(item['qty']) 
+                    # 2. 상품명 입력 (앞에 [발주번호]가 붙은 상태)
+                    set_bold_text(table.cell(row_idx, 2).text_frame, item['name'], False, font_size=11)
                     
-                    set_bold_text(table.cell(row_idx, 3).text_frame, each_qty, False) # 발주수량 칸
-                    set_bold_text(table.cell(row_idx, 4).text_frame, each_qty, False) # 입고확인 칸
+                    # 💡 [핵심 수정] 전체 합계가 아닌, 이 상품의 진짜 수량(item['qty'])을 가져옵니다.
+                    sku_qty = str(item['qty']) 
                     
-                    # 3. 비고란에 날짜 표기
-                    table.cell(row_idx, 5).text = f"-\n/{year}.{int(month)}.{int(day-1)}"
+                    # 3. 발주수량 및 입고확인 칸에 해당 상품의 개별 수량 입력
+                    set_bold_text(table.cell(row_idx, 3).text_frame, sku_qty, False) # 발주수량
+                    set_bold_text(table.cell(row_idx, 4).text_frame, sku_qty, False) # 입고확인
+                    
+                    # 4. 비고란 (전날 날짜 표기 로직 적용)
+                     table.cell(row_idx, 5).text = f"-\n/{year}.{int(month)}.{int(day)}"
             except Exception as e:
                 pass
                 
