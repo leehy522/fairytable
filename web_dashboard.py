@@ -301,6 +301,9 @@ elif menu == "🚚 밀크런 PPT 변환":
                     st.download_button("📥 최종 PPT 다운로드", ppt_out.getvalue(), "밀크런_수량수정_결과.pptx")
                     st.success(f"✅ 수정 완료! 총 {len(prs.slides)}장의 슬라이드가 생성되었습니다.")
                     
+                except Exception as e:
+                    st.error(f"PPT 생성 중 에러가 발생했습니다: {e}")
+                    
 # --- 메뉴 3: 택배 송장 변환 ---
 elif menu == "📦 택배 송장 변환":
     st.title("📦 택배 송장 자동 변환기 (A-type)")
