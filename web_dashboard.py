@@ -209,6 +209,12 @@ elif menu == "🚚 밀크런 PPT 변환":
                         continue # 짝수 장(index 1, 3, 5...)은 건너뜁니다.
 
                     text = page.extract_text() + "\n"
+                    # --- [이하 기존 데이터 추출 로직 동일] ---
+                    po_match = (re.search(r"(?:발주번호|PO|no|Info)\s*[:\s\n]*(\d{9})", text, re.I) or 
+                                re.search(r"(\d{9})", text))
+                    if not po_match: continue
+                    
+                    po_num = po_match.group(1) if hasattr(po_match, 'group') else po_match[0]
                     
                     po_num = po_match.group(1) if hasattr(po_match, 'group') else po_match[0]
                     fc_match = re.search(r"(?:FC명|FC\s*Name|센터명)\s*[:\s\n]*([A-Z0-9가-힣]+)", text, re.I) or \
