@@ -48,7 +48,6 @@ if not check_password():
 # --- [3. 공통 로직 및 함수 정의] ---
 # (여기서부터 기존 버전 1의 get_pallet_capacity 등 함수들이 이어집니다)
 def get_pallet_capacity(sku):
-    """SKU별 팔레트 적재량 반환 (요정비닐 전용 로직)"""
     sku = str(sku)
     if sku in ['32058611', '15651222']: return 300
     if sku in ['29558294', '32711887']: return 192
@@ -58,16 +57,64 @@ def get_pallet_capacity(sku):
 
 def duplicate_slide(prs, index):
     template = prs.slides[index]
-    blank_layout = prs.slide_layouts[6]
+    blank_layout = prs.slide_layouts[6] if len(prs.slide_layouts) > 6 else prs.slide_layouts[0]
     new_slide = prs.slides.add_slide(blank_layout)
+    for shp in list(new_slide.shapes):
+        new_slide.shapes._spTree.remove(shp.element)
     for shape in template.shapes:
-        el = copy.deepcopy(shape.element)
-        new_slide.shapes._spTree.insert_element_before(el, 'p:extLst')
+        new_el = copy.deepcopy(shape.element)
+        new_slide.shapes._spTree.insert_element_before(new_el, 'p:extLst')
     return new_slide
 
+def set_bold_text(text_frame, content, is_bold=True, font_size=None):
+    text_frame.text = str(content)
+    for paragraph in text_frame.paragraphs:
+        for run in paragraph.runs:
+            run.font.bold = is_bold
+            if font_size: run.font.size = Pt(font_size)
+
+# 💡 텍스트 공란 문제를 해결하기 위해 로직을 꽉 채웠습니다.
 def fill_slide_data(slide, p, po_num, fc_name, year, month, day):
-    # 밀크런 텍스트 및 테이블 채우기 로직 (생략 - 기존 버전1과 동일 유지)
-    pass
+    try:
+        current_plt_idx = int(p['no'].split('-')[1])
+        total_qty = int(p['total_qty'])
+        cap = int(p['cap'])
+        display_qty = cap if current_plt_idx * cap <= total_qty else (total_qty % cap if total_qty % cap != 0 else cap)
+    except: display_qty = p['total_qty']
+
+    for shape in slide.shapes:
+        if shape.has_text_frame:
+            tf = shape.text_frame
+            txt = shape.text
+            if "박스수량" in txt or "BOX" in txt:
+                set_bold_text(tf, f"{p['no']} / 총 박스수량  ({p['total_qty']} BOX)", True)
+            elif "입고예정일자" in txt or "납품센터명" in txt:
+                set_bold_text(tf, f"입고예정일자 ({int(month)}월 {int(day)}일) / 납품센터명 ({fc_name} 센터)", True)
+            elif "업체명" in txt:
+                tf.text = "업체명         (   주식회사 페어리드림    )"
+            elif "발주번호" in txt:
+                set_bold_text(tf, f"발주번호       ({po_num})", True)
+        if shape.has_table:
+            table = shape.table
+            try:
+                for idx, item in enumerate(p['items_list']):
+                    row_idx = idx + 1 
+                    if row_idx >= len(table.rows): break
+                    set_bold_text(table.cell(row_idx, 1).text_frame, item['sku'], False)
+                    set_bold_text(table.cell(row_idx, 2).text_frame, item['name'], False, font_size=11)
+                    set_bold_text(table.cell(row_idx, 3).text_frame, str(display_qty), False)
+                    set_bold_text(table.cell(row_idx, 4).text_frame, str(display_qty), False)
+                    table.cell(row_idx, 5).text = f"-\n/{year}.{int(month)}.{int(day)}"
+            except: pass
+
+@st.cache_data(ttl=60)
+def load_google_sheet_data():
+    CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTVvCbm9KEoUrqvlXSyIyLHmstIGZuiuTMLYDBnmgnxInrfoMelDXFSWogUdHUfNALb7uC_nBAIyzif/pub?output=csv"
+    try:
+        df = pd.read_csv(CSV_URL)
+        df.columns = [str(c).strip() for c in df.columns]
+        return df.dropna(subset=['상품명'])
+    except: return pd.DataFrame()
 
 # --- [여기서부터 기존 메뉴 로직 시작] ---
 # --- [2. 공통 로직 및 함수 정의] ---
