@@ -79,21 +79,34 @@ def fill_slide_data(slide, p, po_num, fc_name, year, month, day):
         current_plt_idx = int(p['no'].split('-')[1])
         total_qty = int(p['total_qty'])
         cap = int(p['cap'])
+        # 팔레트별 수량 계산 로직 (v4.98)
         display_qty = cap if current_plt_idx * cap <= total_qty else (total_qty % cap if total_qty % cap != 0 else cap)
-    except: display_qty = p['total_qty']
+    except: 
+        display_qty = p['total_qty']
 
+    # 💡 윤겸님이 말씀하신 바로 그 핵심 텍스트 치환 로직입니다!
     for shape in slide.shapes:
         if shape.has_text_frame:
             tf = shape.text_frame
             txt = shape.text
+            
+            # 1. 박스수량 및 팔레트 번호 (예: 12-1)
             if "박스수량" in txt or "BOX" in txt:
                 set_bold_text(tf, f"{p['no']} / 총 박스수량  ({p['total_qty']} BOX)", True)
-            elif "입고예정일자" in txt or "납품센터명" or "FC Name" in txt:
+            
+            # 2. 입고 날짜 및 납품 센터명
+            elif "입고예정일자" in txt or "납품센터명" in txt:
                 set_bold_text(tf, f"입고예정일자 ({int(month)}월 {int(day)}일) / 납품센터명 ({fc_name} 센터)", True)
+            
+            # 3. 고정 업체명 입력
             elif "업체명" in txt:
                 tf.text = "업체명         (   주식회사 페어리드림    )"
+            
+            # 4. 발주번호 입력
             elif "발주번호" in txt:
                 set_bold_text(tf, f"발주번호       ({po_num})", True)
+        
+        # 표(Table)가 있는 경우 SKU와 상품명, 수량을 채웁니다.
         if shape.has_table:
             table = shape.table
             try:
@@ -106,7 +119,7 @@ def fill_slide_data(slide, p, po_num, fc_name, year, month, day):
                     set_bold_text(table.cell(row_idx, 4).text_frame, str(display_qty), False)
                     table.cell(row_idx, 5).text = f"-\n/{year}.{int(month)}.{int(day)}"
             except: pass
-
+                
 @st.cache_data(ttl=60)
 def load_google_sheet_data():
     CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTVvCbm9KEoUrqvlXSyIyLHmstIGZuiuTMLYDBnmgnxInrfoMelDXFSWogUdHUfNALb7uC_nBAIyzif/pub?output=csv"
