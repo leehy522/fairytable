@@ -100,7 +100,7 @@ def fill_slide_data(slide, p, po_num, fc_name, year, month, day):
             
             # 3. 고정 업체명 입력
             elif "업체명" in txt:
-                set_bold_text(tf.text = "업체명         (   주식회사 페어리드림    )")
+                set_bold_text(tf, "업체명         (   주식회사 페어리드림    )", True)
             
             # 4. 발주번호 입력
             elif "발주번호" in txt:
