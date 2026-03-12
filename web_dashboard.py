@@ -186,37 +186,29 @@ if menu == "🏷️ 요정비닐 상품 현황":
         st.error("데이터를 불러올 수 없습니다. 구글 시트의 '웹에 게시' 설정을 확인해주세요.")
 
 elif menu == "🚚 밀크런 PPT 변환":
-    st.title("🚚 밀크런 통합 편집 시스템 (v4.98 이식)")
-    st.info("💡 수량을 직접 수정하거나 여러 품목을 하나로 합쳐서(Mixed) PPT를 생성할 수 있습니다.")
-
-    # 1. 파일 업로드
-    tpl_file = st.file_uploader("1. 양식 PPT 업로드", type=['pptx'], key="ml_tpl")
-    pdf_files = st.file_uploader("2. 발주서 PDF 업로드 (다중 선택 가능)", type=['pdf'], accept_multiple_files=True, key="ml_pdfs")
+    st.title("🚚 밀크런 통합 편집 시스템 (v4.98 다중페이지 대응)")
+    tpl_file = st.file_uploader("1. 양식 PPT 업로드", type=['pptx'])
+    pdf_files = st.file_uploader("2. 발주서 PDF 업로드", type=['pdf'], accept_multiple_files=True)
 
     if tpl_file and pdf_files:
-        # 데이터 추출 단계
-        if "extracted_data" not in st.session_state:
+        # 1. 세션 초기화
+        if "extracted_data" not in st.session_state: 
             st.session_state.extracted_data = []
 
-    if st.button("🔍 발주서 데이터 정밀 분석"):
+        # 2. 발주서 분석 버튼
+        if st.button("🔍 발주서 데이터 정밀 분석"):
             all_extracted = []
             for pdf_file in pdf_files:
                 reader = pypdf.PdfReader(pdf_file)
-                
-                # 💡 파일 내 각 페이지를 개별적으로 분석합니다.
-                for page_idx, page in enumerate(reader.pages):
+                # 페이지별로 순회하며 발주번호를 각각 찾습니다.
+                for page in reader.pages:
                     text = page.extract_text() + "\n"
-                    
-                    # 1. 해당 페이지에서 발주번호 추출
                     po_match = (re.search(r"(?:발주번호|PO|no|Info)\s*[:\s\n]*(\d{9})", text, re.I) or 
                                 re.search(r"(\d{9})", text))
                     
-                    if not po_match:
-                        continue # 발주번호가 없는 페이지는 건너뜁니다.
-                        
+                    if not po_match: continue
                     po_num = po_match.group(1) if hasattr(po_match, 'group') else po_match[0]
                     
-                    # 2. 센터명 및 날짜 추출 (페이지별로 다를 수 있으므로 매번 수행)
                     fc_match = re.search(r"(?:FC명|FC\s*Name|센터명)\s*[:\s\n]*([A-Z0-9가-힣]+)", text, re.I) or \
                                re.search(r"([가-힣]+)센터", text)
                     fc_name = fc_match.group(1).strip() if fc_match else "알수없음"
@@ -224,56 +216,44 @@ elif menu == "🚚 밀크런 PPT 변환":
                     date_match = re.search(r"(\d{4}-\d{2}-\d{2})", text)
                     date_raw = date_match.group(1) if date_match else "2026-03-12"
                     
-                    # 3. 해당 페이지 내 상품 정보 추출
                     sku_matches = list(re.finditer(r"\b(\d{8})\b", text))
                     processed_in_page = set()
                     
                     for m in sku_matches:
                         sku = m.group(1)
                         if sku in processed_in_page: continue
-                        
                         cap = get_pallet_capacity(sku)
                         block = text[m.end():m.end()+450]
                         name_search = re.search(r"([가-힣]{2,}[가-힣\s\d\-\(\)]+)", block)
                         real_name = name_search.group(1).strip() if name_search else "상품명확인"
-                        
                         nums = re.findall(r"\b\d{1,4}\b", block)
                         qty = int(nums[1]) if len(nums) >= 2 else (int(nums[0]) if len(nums) == 1 else 0)
                         
                         if qty > 0:
                             all_extracted.append({
-                                "발주번호": po_num, # 💡 이제 페이지별로 추출된 번호가 들어갑니다!
-                                "센터": fc_name, 
-                                "SKU": sku, 
-                                "상품명": real_name[:40], 
-                                "확정수량": qty, 
-                                "적재량": cap, 
-                                "date": date_raw
+                                "발주번호": po_num, "센터": fc_name, "SKU": sku, 
+                                "상품명": real_name[:40], "확정수량": qty, "적재량": cap, "date": date_raw
                             })
                             processed_in_page.add(sku)
             
             st.session_state.extracted_data = all_extracted
-            st.success(f"✅ 총 {len(all_extracted)}개의 품목 분석 완료!")
             st.rerun()
 
-        # 2. 통합 편집기 (v4.98 BulkQuantityEditor 기능)
+        # 💡 [여기가 에러가 났던 260번 줄 위치입니다]
+        # if st.button(...) 블록과 수직 정렬이 맞아야 합니다.
         if st.session_state.extracted_data:
             st.subheader("📊 발주 데이터 통합 편집")
-            df_editor = pd.DataFrame(st.session_state.extracted_data)
-            
-            # 직접 수량과 적재량을 수정할 수 있는 편집 테이블
-            edited_df = st.data_editor(df_editor, num_rows="dynamic", use_container_width=True, key="ml_editor")
+            edited_df = st.data_editor(pd.DataFrame(st.session_state.extracted_data), num_rows="dynamic", use_container_width=True)
 
-            # 3. PPT 생성 시작
             if st.button("🚀 지능형 합짐 및 PPT 생성"):
                 try:
                     prs = Presentation(tpl_file)
-                    # (슬라이드 초기화 로직은 기존과 동일)
-                    
+                    # (슬라이드 초기화 로직 생략 - 기존과 동일)
                     is_first = True
-                    # 1. 센터별로 그룹화 (발주번호가 달라도 센터가 같으면 한 그룹)
                     for center, group in edited_df.groupby("센터"):
-                        
+                        po_list = sorted([str(po) for po in group["발주번호"].unique()])
+                        all_po_nums = ", ".join(po_list)
+                        # (이하 합짐 및 생성 로직 v1.31과 동일하게 이어짐)
                         # 💡 [여기서부터가 핵심 삽입 위치입니다!]
                         # 이 센터 그룹에 포함된 모든 고유 발주번호를 추출하여 쉼표로 연결합니다.
                         po_list = sorted([str(po) for po in group["발주번호"].unique()])
