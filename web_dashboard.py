@@ -122,11 +122,11 @@ def fill_slide_data(slide, p, po_num, fc_name, year, month, day):
                     set_bold_text(table.cell(row_idx, 2).text_frame, item['name'], False, font_size=11)
                     
                     # 💡 [핵심 수정] 전체 합계가 아닌, 이 상품의 진짜 수량(item['qty'])을 가져옵니다.
-                    each_sku_cap = str(item['cap']) 
+                    sku_cap = str(item.get('cap', p.get('cap', 300))) 
                     
                     # 3. 발주수량 및 입고확인 칸에 해당 상품의 개별 수량 입력
-                    set_bold_text(table.cell(row_idx, 3).text_frame, each_sku_cap, False) # 발주수량
-                    set_bold_text(table.cell(row_idx, 4).text_frame, each_sku_cap, False) # 입고확인
+                    set_bold_text(table.cell(row_idx, 3).text_frame, sku_cap, False) # 발주수량
+                    set_bold_text(table.cell(row_idx, 4).text_frame, sku_cap, False) # 입고확인
                     
                     # 4. 비고란 (전날 날짜 표기 로직 적용)
                     table.cell(row_idx, 5).text = f"-\n/{year}.{int(month)}.{int(day)}"
