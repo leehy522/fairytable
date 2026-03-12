@@ -198,54 +198,62 @@ elif menu == "🚚 밀크런 PPT 변환":
         if "extracted_data" not in st.session_state:
             st.session_state.extracted_data = []
 
-# 💡 버튼 아래쪽은 모두 이만큼(스페이스 8칸) 들여쓰기가 되어야 합니다.
-        if st.button("🔍 발주서 데이터 정밀 분석"):
+if st.button("🔍 발주서 데이터 정밀 분석"):
             all_extracted = []
             for pdf_file in pdf_files:
                 reader = pypdf.PdfReader(pdf_file)
-                text = ""
-                for page in reader.pages:
-                    text += page.extract_text() + "\n"
                 
-                # 데이터 추출 로직 시작 (v4.98 정밀 로직)
-                po_num = (re.search(r"(?:발주번호|PO|no|Info)\s*[:\s\n]*(\d{9})", text, re.I) or 
-                          re.search(r"(\d{9})", text) or ["000000000"])[0]
-                
-                fc_match = re.search(r"(?:FC명|FC\s*Name|센터명)\s*[:\s\n]*([A-Z0-9가-힣]+)", text, re.I) or \
-                           re.search(r"([가-힣]+)센터", text)
-                fc_name = fc_match.group(1).strip() if fc_match else "알수없음"
-                
-                date_match = re.search(r"(\d{4}-\d{2}-\d{2})", text)
-                date_raw = date_match.group(1) if date_match else "2026-03-12"
-                
-                sku_matches = list(re.finditer(r"\b(\d{8})\b", text))
-                processed = set()
-                
-                for m in sku_matches:
-                    sku = m.group(1)
-                    if sku in processed: continue
-                    cap = get_pallet_capacity(sku)
-                    block = text[m.end():m.end()+450]
-                    name_search = re.search(r"([가-힣]{2,}[가-힣\s\d\-\(\)]+)", block)
-                    real_name = name_search.group(1).strip() if name_search else "상품명확인"
+                # 💡 파일 내 각 페이지를 개별적으로 분석합니다.
+                for page_idx, page in enumerate(reader.pages):
+                    text = page.extract_text() + "\n"
                     
-                    nums = re.findall(r"\b\d{1,4}\b", block)
-                    qty = int(nums[1]) if len(nums) >= 2 else (int(nums[0]) if len(nums) == 1 else 0)
+                    # 1. 해당 페이지에서 발주번호 추출
+                    po_match = (re.search(r"(?:발주번호|PO|no|Info)\s*[:\s\n]*(\d{9})", text, re.I) or 
+                                re.search(r"(\d{9})", text))
                     
-                    # 💡 여기가 이미지에서 빨간 줄이 가있던 핵심 부분입니다!
-                    all_extracted.append({
-                        "발주번호": po_num, 
-                        "센터": fc_name, 
-                        "SKU": sku, 
-                        "상품명": real_name[:40], 
-                        "확정수량": qty, 
-                        "적재량": cap, 
-                        "date": date_raw
-                    })
-                    processed.add(sku)
+                    if not po_match:
+                        continue # 발주번호가 없는 페이지는 건너뜁니다.
+                        
+                    po_num = po_match.group(1) if hasattr(po_match, 'group') else po_match[0]
+                    
+                    # 2. 센터명 및 날짜 추출 (페이지별로 다를 수 있으므로 매번 수행)
+                    fc_match = re.search(r"(?:FC명|FC\s*Name|센터명)\s*[:\s\n]*([A-Z0-9가-힣]+)", text, re.I) or \
+                               re.search(r"([가-힣]+)센터", text)
+                    fc_name = fc_match.group(1).strip() if fc_match else "알수없음"
+                    
+                    date_match = re.search(r"(\d{4}-\d{2}-\d{2})", text)
+                    date_raw = date_match.group(1) if date_match else "2026-03-12"
+                    
+                    # 3. 해당 페이지 내 상품 정보 추출
+                    sku_matches = list(re.finditer(r"\b(\d{8})\b", text))
+                    processed_in_page = set()
+                    
+                    for m in sku_matches:
+                        sku = m.group(1)
+                        if sku in processed_in_page: continue
+                        
+                        cap = get_pallet_capacity(sku)
+                        block = text[m.end():m.end()+450]
+                        name_search = re.search(r"([가-힣]{2,}[가-힣\s\d\-\(\)]+)", block)
+                        real_name = name_search.group(1).strip() if name_search else "상품명확인"
+                        
+                        nums = re.findall(r"\b\d{1,4}\b", block)
+                        qty = int(nums[1]) if len(nums) >= 2 else (int(nums[0]) if len(nums) == 1 else 0)
+                        
+                        if qty > 0:
+                            all_extracted.append({
+                                "발주번호": po_num, # 💡 이제 페이지별로 추출된 번호가 들어갑니다!
+                                "센터": fc_name, 
+                                "SKU": sku, 
+                                "상품명": real_name[:40], 
+                                "확정수량": qty, 
+                                "적재량": cap, 
+                                "date": date_raw
+                            })
+                            processed_in_page.add(sku)
             
-            # 모든 분석이 끝나면 세션에 저장 (이것도 버튼 안쪽!)
             st.session_state.extracted_data = all_extracted
+            st.success(f"✅ 총 {len(all_extracted)}개의 품목 분석 완료!")
             st.rerun()
 
         # 2. 통합 편집기 (v4.98 BulkQuantityEditor 기능)
