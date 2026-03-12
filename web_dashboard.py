@@ -276,7 +276,10 @@ elif menu == "🚚 밀크런 PPT 변환":
                         
                         cap = int(group["적재량"].iloc[0])
                         # 팔레트 수 계산 (이 값은 p_info의 'no'에만 쓰여야 합니다)
-                        tot_plt = (total_qty_sum // cap) + (1 if total_qty_sum % cap > 0 else 0)
+                        if total_qty_sum < 300:
+                            tot_plt = 1
+                        else:
+                            tot_plt = (total_qty_sum // cap) + (1 if total_qty_sum % cap > 0 else 0)
                         y, m, d = group["date"].iloc[0].split('-')
                         
                         for i in range(1, tot_plt + 1):
