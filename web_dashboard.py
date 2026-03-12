@@ -185,7 +185,7 @@ elif menu == "🚚 밀크런 PPT 변환":
         if "extracted_data" not in st.session_state:
             st.session_state.extracted_data = []
 
-     if st.button("🔍 발주서 데이터 정밀 분석"):
+        if st.button("🔍 발주서 데이터 정밀 분석"):
             all_extracted = []
             for pdf_file in pdf_files:
                 reader = pypdf.PdfReader(pdf_file)
