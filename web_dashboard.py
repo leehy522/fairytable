@@ -110,6 +110,9 @@ def fill_slide_data(slide, p, po_num, fc_name, year, month, day):
         if shape.has_table:
             table = shape.table
             try:
+                # 합쳐진 품목의 개수를 먼저 확인합니다.
+                item_count = len(p['items_list'])
+                
                 # 💡 합쳐진 품목 리스트(items_list)를 하나씩 꺼내어 표의 행(Row)에 채웁니다.
                 for idx, item in enumerate(p['items_list']):
                     row_idx = idx + 1 
@@ -121,12 +124,18 @@ def fill_slide_data(slide, p, po_num, fc_name, year, month, day):
                     # 2. 상품명 입력 (앞에 [발주번호]가 붙은 상태)
                     set_bold_text(table.cell(row_idx, 2).text_frame, item['name'], False, font_size=11)
                     
-                    # 💡 [핵심 수정] 전체 합계가 아닌, 이 상품의 진짜 수량(item['qty'])을 가져옵니다.
-                    individual_qty = str(item.get('qty', item.get('확정수량', 1)))
+                    # 💡 [핵심 로직] 합침 여부에 따른 수량 차등 적용
+                    if item_count > 1:
+                        # A. 합쳐졌을 때 (지금 버전): 실제 개별 수량(qty) 표시
+                        display_val = str(item.get('qty', item.get('확정수량', 1)))
+                    else:
+                        # B. 합쳐지지 않았을 때 (아까 버전): 팔레트 적재량(cap) 표시
+                        # 300개 미만 1팔레트 규칙이 적용된 슬라이드라면 적재량으로 표기합니다.
+                        display_val = str(item.get('cap', p.get('cap', 300)))
                     
                     # 3. 발주수량 및 입고확인 칸에 해당 상품의 개별 수량 입력
-                    set_bold_text(table.cell(row_idx, 3).text_frame, individual_qty, False) # 발주수량
-                    set_bold_text(table.cell(row_idx, 4).text_frame, individual_qty, False) # 입고확인
+                    set_bold_text(table.cell(row_idx, 3).text_frame, display_val, False) # 발주수량
+                    set_bold_text(table.cell(row_idx, 4).text_frame, display_val, False) # 입고확인
                     
                     # 4. 비고란 (전날 날짜 표기 로직 적용)
                     table.cell(row_idx, 5).text = f"-\n/{year}.{int(month)}.{int(day)}"
