@@ -145,6 +145,32 @@ def load_google_sheet_data():
         st.error(f"구글 시트 연결 오류: {e}")
         return pd.DataFrame()
 
+def consolidate_pallets(df):
+    # 1. 센터별로 데이터를 묶습니다.
+    consolidated = []
+    for center, group in df.groupby("센터"):
+        # 같은 센터 내에서 발주번호가 달라도 품목 리스트를 하나로 합칩니다.
+        mixed_items = []
+        total_qty = 0
+        
+        for _, row in group.iterrows():
+            mixed_items.append({
+                'sku': row['SKU'],
+                'name': f"[{row['발주번호']}] {row['상품명']}", # 발주번호를 이름 앞에 나란히 표기
+                'qty': row['확정수량']
+            })
+            total_qty += row['확정수량']
+            
+        # 2. 합쳐진 결과를 하나의 팔레트 정보로 생성 (적재량은 그룹 내 최대값 기준 등 설정 가능)
+        consolidated.append({
+            'po': "혼합발주", 
+            'fc': center,
+            'items_list': mixed_items,
+            'total_qty': total_qty,
+            'cap': group['적재량'].max()
+        })
+    return consolidated
+
 # --- [3. 사이드바 메뉴 구성] ---
 st.sidebar.title("🚀 요정비닐 관리자")
 menu = st.sidebar.radio("메뉴를 선택하세요", 
