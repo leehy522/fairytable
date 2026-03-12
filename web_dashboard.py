@@ -185,7 +185,7 @@ if menu == "🏷️ 요정비닐 상품 현황":
     else:
         st.error("데이터를 불러올 수 없습니다. 구글 시트의 '웹에 게시' 설정을 확인해주세요.")
 
-elif menu == "🚚 밀크런 변환":
+elif menu == "🚚 밀크런 PPT 변환":
     st.title("🚚 밀크런 통합 편집 시스템 (v4.98 로직 이식)")
     
     tpl_file = st.file_uploader("1. 양식 PPT 업로드", type=['pptx'])
