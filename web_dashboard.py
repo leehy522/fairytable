@@ -265,7 +265,7 @@ if st.button("🔍 발주서 데이터 정밀 분석"):
             edited_df = st.data_editor(df_editor, num_rows="dynamic", use_container_width=True, key="ml_editor")
 
             # 3. PPT 생성 시작
-if st.button("🚀 지능형 합짐 및 PPT 생성"):
+            if st.button("🚀 지능형 합짐 및 PPT 생성"):
                 try:
                     prs = Presentation(tpl_file)
                     # (슬라이드 초기화 로직은 기존과 동일)
