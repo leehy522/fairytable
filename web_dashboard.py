@@ -129,7 +129,7 @@ def fill_slide_data(slide, p, po_num, fc_name, year, month, day):
                     set_bold_text(table.cell(row_idx, 4).text_frame, sku_qty, False) # 입고확인
                     
                     # 4. 비고란 (전날 날짜 표기 로직 적용)
-                     table.cell(row_idx, 5).text = f"-\n/{year}.{int(month)}.{int(day)}"
+                    table.cell(row_idx, 5).text = f"-\n/{year}.{int(month)}.{int(day)}"
             except Exception as e:
                 pass
                 
