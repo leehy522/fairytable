@@ -252,33 +252,42 @@ elif menu == "🚚 밀크런 PPT 변환":
             if st.button("🚀 지능형 합짐 및 PPT 생성"):
                 try:
                     prs = Presentation(tpl_file)
-                    # 💡 슬라이드 초기화: 첫 번째 양식만 남기고 싹 비웁니다.
+                    # 슬라이드 초기화
                     while len(prs.slides) > 1:
                         rId = prs.slides._sle[1].rId
                         prs.part.drop_rel(rId); del prs.slides._sle[1]
                     
                     is_first = True
-                    # 센터별 그룹화 (v4.98 핵심 로직)
                     for center, group in edited_df.groupby("센터"):
                         po_list = sorted([str(p) for p in group["발주번호"].unique()])
                         all_pos = ", ".join(po_list)
                         
-                        mixed_items, total_qty_sum = [], 0
+                        mixed_items = []
+                        total_qty_sum = 0 # 💡 센터별 전체 박스 합계를 저장할 변수
+                        
                         for _, row in group.iterrows():
                             q = int(row["확정수량"])
                             if q <= 0: continue
+                            # 개별 발주번호를 상품명 앞에 붙여서 혼동 방지
                             mixed_items.append({'sku': row['SKU'], 'name': f"[{row['발주번호']}] {row['상품명']}", 'qty': q})
                             total_qty_sum += q
                         
                         if not mixed_items: continue
+                        
                         cap = int(group["적재량"].iloc[0])
-                        # 팔레트 수량 계산 (v4.98 정밀 공식)
+                        # 팔레트 수 계산 (이 값은 p_info의 'no'에만 쓰여야 합니다)
                         tot_plt = (total_qty_sum // cap) + (1 if total_qty_sum % cap > 0 else 0)
                         y, m, d = group["date"].iloc[0].split('-')
                         
                         for i in range(1, tot_plt + 1):
-                            p_info = {'no': f"{tot_plt}-{i}", 'total_qty': total_qty_sum, 'cap': cap, 'items_list': mixed_items}
-                            # 💡 한 팔레트당 2장씩 생성 (요정비닐 출력 규칙)
+                            # 💡 오류 수정 포인트: 'total_qty' 자리에 tot_plt가 아닌 total_qty_sum을 정확히 전달!
+                            p_info = {
+                                'no': f"{tot_plt}-{i}", 
+                                'total_qty': total_qty_sum, # 팔레트 수(12)가 아닌 실제 박스 수(예: 3600) 입력
+                                'cap': cap, 
+                                'items_list': mixed_items
+                            }
+                            
                             for _ in range(2):
                                 if is_first:
                                     slide = prs.slides[0]
@@ -289,10 +298,8 @@ elif menu == "🚚 밀크런 PPT 변환":
 
                     ppt_out = io.BytesIO()
                     prs.save(ppt_out)
-                    st.download_button("📥 최종 PPT 다운로드", ppt_out.getvalue(), "밀크런_통합결과.pptx")
-                    st.success(f"✨ 완료! {len(prs.slides)}장의 슬라이드가 생성되었습니다.")
-                except Exception as e:
-                    st.error(f"PPT 생성 에러: {e}")
+                    st.download_button("📥 최종 PPT 다운로드", ppt_out.getvalue(), "밀크런_수량수정_결과.pptx")
+                    st.success(f"✅ 수정 완료! 총 {len(prs.slides)}장의 슬라이드가 생성되었습니다.")
                     
 # --- 메뉴 3: 택배 송장 변환 ---
 elif menu == "📦 택배 송장 변환":
