@@ -60,19 +60,26 @@ if not check_password():
 # --- [3. 공통 로직 및 함수 정의] ---
 # (여기서부터 기존 버전 1의 get_pallet_capacity 등 함수들이 이어집니다)
 def get_pallet_capacity(sku):
+    """SKU별 팔레트 적재량 반환 (요정비닐 전용 로직)"""
     sku = str(sku)
-    # 요정비닐 주요 품목별 적재량 설정
     if sku in ['32058611', '15651222']: return 300
     if sku in ['29558294', '32711887']: return 192
     if sku == '32083343': return 400
     if sku == '32366753': return 560
     return 300
-    
-for m_sku in sku_matches:
-    sku = m_sku.group(1)
-    if sku in processed: continue
 
-tot_plt = (qty // cap) + (1 if qty % cap > 0 else 0)
+def duplicate_slide(prs, index):
+    template = prs.slides[index]
+    blank_layout = prs.slide_layouts[6]
+    new_slide = prs.slides.add_slide(blank_layout)
+    for shape in template.shapes:
+        el = copy.deepcopy(shape.element)
+        new_slide.shapes._spTree.insert_element_before(el, 'p:extLst')
+    return new_slide
+
+def fill_slide_data(slide, p, po_num, fc_name, year, month, day):
+    # 밀크런 텍스트 및 테이블 채우기 로직 (생략 - 기존 버전1과 동일 유지)
+    pass
 
 # --- [여기서부터 기존 메뉴 로직 시작] ---
 # --- [2. 공통 로직 및 함수 정의] ---
