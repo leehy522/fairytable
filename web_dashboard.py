@@ -516,3 +516,63 @@ elif menu == "📈 시장 지표 분석":
                 
             except Exception as e:
                 st.error(f"데이터 연동 실패: {e}")
+
+# --- 메뉴 6: 나라장터 입찰 정보 ---
+elif menu == "🏛️ 나라장터 입찰":
+    st.title("🏛️ 나라장터 실시간 입찰 정보 (비닐/봉투)")
+    
+    # 1. API 설정 (발급받으신 인증키를 여기에 넣으세요)
+    # 💡 Decoding 키를 넣는 것이 파이썬에서 가장 잘 작동합니다.
+    auth_key = st.text_input("공공데이터 API 인증키 입력", type="password")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        search_keyword = st.selectbox("검색 키워드 선택", ["비닐봉투", "쓰레기봉투", "폴리에틸렌", "포장봉투"])
+    with col2:
+        num_rows = st.slider("조회 공고 수", 5, 50, 10)
+
+    if st.button("🔍 입찰 공고 불러오기") and auth_key:
+        with st.spinner("나라장터 서버에서 데이터를 가져오는 중..."):
+            try:
+                # 2. 나라장터 물품 입찰공고 API 호출
+                url = "http://apis.data.go.kr/1230000/BidPublicInfoService05/getBidPblancListInfoThng03"
+                params = {
+                    'serviceKey': auth_key,
+                    'bidNtceNm': search_keyword,
+                    'type': 'json',
+                    'numOfRows': str(num_rows),
+                    'pageNo': '1',
+                    'inqryDiv': '1', # 공고일자 기준
+                    'inqryBgnDt': (datetime.now() - timedelta(days=30)).strftime('%Y%m%d%H%M'), # 최근 30일
+                    'inqryEndDt': datetime.now().strftime('%Y%m%d%H%M')
+                }
+
+                response = requests.get(url, params=params, timeout=10)
+                data = response.json()
+
+                # 3. 데이터 결과 출력
+                if 'response' in data and 'body' in data['response']:
+                    items = data['response']['body'].get('items', [])
+                    if items:
+                        df_bid = pd.DataFrame(items)
+                        # 필요한 컬럼만 정리 (공고명, 공고일, 기관명, 링크 등)
+                        display_cols = {
+                            'bidNtceNm': '공고명',
+                            'bidNtceDt': '공고일시',
+                            'ntceInsttNm': '공고기관',
+                            'dminsttNm': '수요기관',
+                            'bidNtceUrl': '공고상세URL'
+                        }
+                        df_show = df_bid[display_cols.keys()].rename(columns=display_cols)
+                        
+                        st.success(f"✅ '{search_keyword}' 관련 최신 공고 {len(df_show)}건을 찾았습니다.")
+                        st.data_editor(df_show, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("검색된 최근 공고가 없습니다.")
+                else:
+                    st.error("API 응답 데이터 형식이 올바르지 않습니다. (키 활성화 대기 중일 수 있음)")
+            
+            except Exception as e:
+                st.error(f"❌ 데이터 호출 실패: {e}")
+    elif not auth_key:
+        st.warning("🔑 공공데이터포털에서 발급받은 인증키를 입력해주세요.")
