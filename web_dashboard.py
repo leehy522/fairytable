@@ -555,22 +555,22 @@ elif menu == "🏛️ 나라장터 입찰":
 
                     for category, url in api_urls.items():
                         
-                    end_dt = datetime.now().strftime('%Y%m%d') 
-                    start_dt = (datetime.now() - timedelta(days=days_back)).strftime('%Y%m%d')
+                        end_dt = datetime.now().strftime('%Y%m%d') 
+                        start_dt = (datetime.now() - timedelta(days=days_back)).strftime('%Y%m%d')
                     
-                    params = {
-                        'serviceKey': AUTH_KEY,
-                        'bidNtceNm': keyword,
-                        'type': 'json',
-                        'numOfRows': str(rows),
-                        'pageNo': '1',         # 💡 페이지 번호 명시
-                        'inqryDiv': '1', 
-                        'inqryBgnDt': start_dt,
-                        'inqryEndDt': end_dt
-                    }
-                    res = requests.get(url, params=params, timeout=15)
+                        params = {
+                            'serviceKey': AUTH_KEY,
+                            'bidNtceNm': keyword,
+                            'type': 'json',
+                            'numOfRows': str(rows),
+                            'pageNo': '1',         # 💡 페이지 번호 명시
+                            'inqryDiv': '1', 
+                            'inqryBgnDt': start_dt,
+                            'inqryEndDt': end_dt
+                        }
+                        res = requests.get(url, params=params, timeout=15)
                     
-                    if res.status_code == 200:
+                        if res.status_code == 200:
                             items = res.json().get('response', {}).get('body', {}).get('items', [])
                             if items:
                                 # 어떤 카테고리인지 표시 추가
