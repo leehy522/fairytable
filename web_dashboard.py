@@ -548,14 +548,19 @@ elif menu == "🏛️ 나라장터 입찰":
             with st.spinner("공고 데이터를 가져오는 중..."):
                 try:
                     url = "http://apis.data.go.kr/1230000/BidPublicInfoService05/getBidPblancListInfoThng03"
+                    
+                    end_dt = datetime.now().strftime('%Y%m%d') 
+                    start_dt = (datetime.now() - timedelta(days=days_back)).strftime('%Y%m%d')
+                    
                     params = {
                         'serviceKey': AUTH_KEY,
                         'bidNtceNm': keyword,
                         'type': 'json',
                         'numOfRows': str(rows),
+                        'pageNo': '1',         # 💡 페이지 번호 명시
                         'inqryDiv': '1', 
-                        'inqryBgnDt': start_dt + '0000',
-                        'inqryEndDt': end_dt + '2359'
+                        'inqryBgnDt': start_dt
+                        'inqryEndDt': end_dt
                     }
                     res = requests.get(url, params=params, timeout=15)
                     # ... 데이터 출력 로직 (생략) ...
@@ -568,14 +573,18 @@ elif menu == "🏛️ 나라장터 입찰":
                 try:
                     # 호출 주소만 다르고 인증키는 AUTH_KEY 그대로 사용합니다.
                     url = "http://apis.data.go.kr/1230000/BidPublicInfoService05/getOpengResultListInfoThng03"
+                    end_dt = datetime.now().strftime('%Y%m%d') 
+                    start_dt = (datetime.now() - timedelta(days=days_back)).strftime('%Y%m%d')
+                    
                     params = {
-                        'serviceKey': AUTH_KEY, 
+                        'serviceKey': AUTH_KEY,
                         'bidNtceNm': keyword,
                         'type': 'json',
                         'numOfRows': str(rows),
+                        'pageNo': '1',         # 💡 페이지 번호 명시
                         'inqryDiv': '1', 
-                        'inqryBgnDt': start_dt + '0000',
-                        'inqryEndDt': end_dt + '2359'
+                        'inqryBgnDt': start_dt
+                        'inqryEndDt': end_dt
                     }
                     res = requests.get(url, params=params, timeout=15)
                     # ... 데이터 출력 로직 (생략) ...
