@@ -539,18 +539,18 @@ elif menu == "🏛️ 나라장터 입찰":
         with st.spinner("조달청 서버 접속 중..."):
             try:
                 # 날짜 설정 (최근 n일)
-                end_dt = datetime.now().strftime('%Y%m%d%H%M')
-                start_dt = (datetime.now() - timedelta(days=days_back)).strftime('%Y%m%d%H%M')
+                end_dt = datetime.now().strftime('%Y%m%d')
+                start_dt = (datetime.now() - timedelta(days=days_back)).strftime('%Y%m%d')
 
-                url = "http://apis.data.go.kr/1230000/BidPublicInfoService05/getBidPblancListInfoThng03"
                 params = {
                     'serviceKey': AUTH_KEY,
                     'bidNtceNm': keyword,
                     'type': 'json',
                     'numOfRows': str(rows),
-                    'inqryDiv': '1', # 공고일자 기준
-                    'inqryBgnDt': start_dt,
-                    'inqryEndDt': end_dt
+                    'pageNo': '1',
+                    'inqryDiv': '1', 
+                    'inqryBgnDt': start_dt + '0000', # 00시 00분 추가
+                    'inqryEndDt': end_dt + '2359'    # 23시 59분 추가
                 }
 
                 response = requests.get(url, params=params, timeout=15)
