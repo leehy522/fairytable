@@ -544,11 +544,17 @@ elif menu == "🏛️ 나라장터 입찰":
 
     # --- 탭 1: 입찰 공고 (동일 키 사용) ---
     with tab1:
-        if st.button("🚀 최신 공고 검색"):
-            with st.spinner("공고 데이터를 가져오는 중..."):
+        if st.button("🚀 물품/용역 통합 검색"):
+            with st.spinner(f"'{keyward}' 관련 공고를 가져오는 중..."):
                 try:
-                    url = "http://apis.data.go.kr/1230000/BidPublicInfoService05/getBidPblancListInfoThng03"
-                    
+                    api_urls = {
+                        "물품": "http://apis.data.go.kr/1230000/BidPublicInfoService05/getBidPblancListInfoThng03",
+                        "용역": "http://apis.data.go.kr/1230000/BidPublicInfoService05/getBidPblancListInfoServ03"
+                    }
+                    all_items = []
+
+                    for category, url in api_urls.items():
+                        
                     end_dt = datetime.now().strftime('%Y%m%d') 
                     start_dt = (datetime.now() - timedelta(days=days_back)).strftime('%Y%m%d')
                     
@@ -563,8 +569,31 @@ elif menu == "🏛️ 나라장터 입찰":
                         'inqryEndDt': end_dt
                     }
                     res = requests.get(url, params=params, timeout=15)
-                    # ... 데이터 출력 로직 (생략) ...
-                except Exception as e: st.error(f"❌ 시스템 오류: {e}")
+                    
+                    if res.status_code == 200:
+                            items = res.json().get('response', {}).get('body', {}).get('items', [])
+                            if items:
+                                # 어떤 카테고리인지 표시 추가
+                                for item in items:
+                                    item['구분'] = category
+                                all_items.extend(items)
+                    if all_items:
+                        df = pd.DataFrame(all_items)
+                        # 요정비닐 맞춤형 컬럼 정리
+                        cols = {
+                            '구분': '구분',
+                            'bidNtceNm': '공고명',
+                            'bidNtceDt': '공고일시',
+                            'ntceInsttNm': '공고기관',
+                            'bidNtceUrl': '상세링크'
+                        }
+                        st.success(f"✅ 총 {len(all_items)}건의 공고(물품+용역)를 찾았습니다.")
+                        st.dataframe(df[cols.keys()].rename(columns=cols), use_container_width=True, hide_index=True)
+                    else:
+                        st.warning(f"🔍 '{keyword}' 관련 공고가 물품/용역 모두에 없습니다.")
+                        
+                except Exception as e:
+                    st.error(f"❌ 시스템 오류: {e}")
 
     # --- 탭 2: 낙찰 결과 (동일 키 사용) ---
     with tab2:
