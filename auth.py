@@ -4,10 +4,11 @@ auth.py — 로그인 인증 모듈
 """
 
 import streamlit as st
+import os
 
-# ── 계정 정보 (필요 시 환경변수로 교체 권장) ──────────────
-_USER_ID = "lhy"
-_USER_PW = "dlghkdud1%"
+# 환경변수 또는 Streamlit Secrets에서 읽기
+_USER_ID = st.secrets.get("USER_ID", os.getenv("USER_ID", "lhy"))
+_USER_PW = st.secrets.get("USER_PW", os.getenv("USER_PW", ""))
 
 
 def check_password() -> bool:
