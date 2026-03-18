@@ -20,6 +20,16 @@ def check_password() -> bool:
     if st.session_state.get("password_correct"):
         return True
 
+    # 로그인 화면에서 사이드바 숨기기
+    st.markdown("""
+        <style>
+            [data-testid="stSidebar"] { display: none; }
+            [data-testid="collapsedControl"] { display: none; }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # ... 이하 기존 코드 동일
+
     st.title("🔐 요정비닐 시스템 접속")
     col_l, _ = st.columns([1, 2])
 
