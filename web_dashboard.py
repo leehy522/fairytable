@@ -18,8 +18,8 @@ st.set_page_config(page_title="요정비닐 스마트 시스템", layout="wide")
 # --- [2. 로그인 보안 로직] ---
 def check_password():
     """아이디와 비밀번호를 확인하여 로그인을 제어합니다."""
-    USER_ID = "lhy"
-    USER_PW = "dlghkdud1%" #
+    USER_ID = ""
+    USER_PW = "" #
 
     if "password_correct" not in st.session_state:
         st.session_state.password_correct = False
