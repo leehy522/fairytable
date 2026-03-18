@@ -542,6 +542,7 @@ elif menu == "🏛️ 나라장터 입찰":
                 end_dt = datetime.now().strftime('%Y%m%d')
                 start_dt = (datetime.now() - timedelta(days=days_back)).strftime('%Y%m%d')
 
+                url = "http://apis.data.go.kr/1230000/BidPublicInfoService05/getBidPblancListInfoThng03"
                 params = {
                     'serviceKey': AUTH_KEY,
                     'bidNtceNm': keyword,
