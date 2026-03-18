@@ -598,23 +598,52 @@ elif menu == "🏛️ 나라장터 입찰":
     # --- 탭 2: 낙찰 결과 (동일 키 사용) ---
     with tab2:
         if st.button("📊 최근 낙찰 데이터 분석"):
-            with st.spinner("개찰 결과를 분석 중..."):
+            with st.spinner(f"'{keyword}' 관련 낙찰 결과를 분석 중..."):
                 try:
-                    # 호출 주소만 다르고 인증키는 AUTH_KEY 그대로 사용합니다.
-                    url = "http://apis.data.go.kr/1230000/BidPublicInfoService05/getOpengResultListInfoThng03"
-                    end_dt = datetime.now().strftime('%Y%m%d') 
-                    start_dt = (datetime.now() - timedelta(days=days_back)).strftime('%Y%m%d')
-                    
-                    params = {
-                        'serviceKey': AUTH_KEY,
-                        'bidNtceNm': keyword,
-                        'type': 'json',
-                        'numOfRows': str(rows),
-                        'pageNo': '1',         # 💡 페이지 번호 명시
-                        'inqryDiv': '1', 
-                        'inqryBgnDt': start_dt,
-                        'inqryEndDt': end_dt
+                    # 1. 물품(Thng)과 용역(Serv) 개찰결과 API 주소
+                    result_urls = {
+                        "물품": "http://apis.data.go.kr/1230000/BidPublicInfoService05/getOpengResultListInfoThng03",
+                        "용역": "http://apis.data.go.kr/1230000/BidPublicInfoService05/getOpengResultListInfoServ03"
                     }
-                    res = requests.get(url, params=params, timeout=15)
-                    # ... 데이터 출력 로직 (생략) ...
-                except Exception as e: st.error(f"❌ 시스템 오류: {e}")
+                    all_results = []
+                    for category, url in result_urls.items():                    
+                        end_dt = datetime.now().strftime('%Y%m%d') 
+                        start_dt = (datetime.now() - timedelta(days=days_back)).strftime('%Y%m%d')
+                    
+                        params = {
+                            'serviceKey': AUTH_KEY,
+                            'bidNtceNm': keyword,
+                            'type': 'json',
+                            'numOfRows': str(rows),
+                            'pageNo': '1',         # 💡 페이지 번호 명시
+                            'inqryDiv': '1', 
+                            'inqryBgnDt': start_dt,
+                            'inqryEndDt': end_dt
+                        }
+                        res = requests.get(url, params=params, timeout=15)
+                        if res.status_code == 200:
+                            items = res.json().get('response', {}).get('body', {}).get('items', [])
+                            if items:
+                                for item in items:
+                                    item['구분'] = category
+                                all_results.extend(items)
+                    
+                    if all_results:
+                        df_res = pd.DataFrame(all_results)
+                        # 낙찰 분석용 핵심 컬럼 정리
+                        res_cols = {
+                            '구분': '구분',
+                            'bidNtceNm': '공고명',
+                            'opengDt': '개찰일시',
+                            'bidWinnerNm': '낙찰업체',
+                            'sucbidLwstRate': '낙찰하한율'
+                        }
+                        # 데이터가 있는 컬럼만 매칭
+                        final_cols = [c for c in res_cols.keys() if c in df_res.columns]
+                        st.success(f"✅ 총 {len(all_results)}건의 낙찰 데이터(물품+용역)를 분석했습니다.")
+                        st.dataframe(df_res[final_cols].rename(columns=res_cols), use_container_width=True, hide_index=True)
+                    else:
+                        st.warning(f"🔍 '{keyword}' 관련 최근 낙찰 결과가 없습니다.")
+                        
+                except Exception as e:
+                    st.error(f"❌ 시스템 오류: {e}")
