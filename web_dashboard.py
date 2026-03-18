@@ -545,7 +545,7 @@ elif menu == "🏛️ 나라장터 입찰":
     # --- 탭 1: 입찰 공고 (동일 키 사용) ---
     with tab1:
         if st.button("🚀 물품/용역 통합 검색"):
-            with st.spinner(f"'{keyward}' 관련 공고를 가져오는 중..."):
+            with st.spinner(f"'{keyword}' 관련 모든 공고를 찾는 중..."):
                 try:
                     api_urls = {
                         "물품": "http://apis.data.go.kr/1230000/BidPublicInfoService05/getBidPblancListInfoThng03",
