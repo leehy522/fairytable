@@ -8,7 +8,8 @@ import pypdf
 import re
 from pptx import Presentation
 from pptx.util import Pt
-from datetime import datetime
+from datetime import datetime, timedelta
+import requests
 
 # --- [1. 페이지 기본 설정] ---
 # 이 코드가 가장 먼저 나와야 합니다.
