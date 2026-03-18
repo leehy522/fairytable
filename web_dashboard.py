@@ -519,60 +519,68 @@ elif menu == "📈 시장 지표 분석":
 
 # --- 메뉴 6: 나라장터 입찰 정보 ---
 elif menu == "🏛️ 나라장터 입찰":
-    st.title("🏛️ 나라장터 실시간 입찰 정보 (비닐/봉투)")
-    
-    # 1. API 설정 (발급받으신 인증키를 여기에 넣으세요)
-    # 💡 Decoding 키를 넣는 것이 파이썬에서 가장 잘 작동합니다.
-    auth_key = st.text_input("공공데이터 API 인증키 입력", type="password")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        search_keyword = st.selectbox("검색 키워드 선택", ["비닐봉투", "쓰레기봉투", "폴리에틸렌", "포장봉투"])
-    with col2:
-        num_rows = st.slider("조회 공고 수", 5, 50, 10)
+    st.title("🏛️ 나라장터 실시간 입찰 정보 (v1.6)")
+    st.info("💡 요정비닐 맞춤형: 비닐봉투, 쓰레기봉투, 폴리에틸렌 공고를 실시간으로 가져옵니다.")
 
-    if st.button("🔍 입찰 공고 불러오기") and auth_key:
-        with st.spinner("나라장터 서버에서 데이터를 가져오는 중..."):
+    # 1. API 설정 (윤겸님 발급 키 적용)
+    # 보안을 위해 직접 코드에 적기보다 변수로 관리하는 것이 좋습니다.
+    AUTH_KEY = "9542280dba7856322b0e5c72c63c510c1fb83bc06c8d62eccab4f58324646cfd"
+    
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
+        keyword = st.text_input("검색 키워드", value="비닐봉투")
+    with col2:
+        days_back = st.number_input("조회 기간(일)", min_value=1, max_value=30, value=7)
+    with col3:
+        rows = st.number_input("출력 개수", min_value=5, max_value=100, value=20)
+
+    if st.button("🚀 최신 입찰 공고 검색"):
+        with st.spinner("조달청 서버 접속 중..."):
             try:
-                # 2. 나라장터 물품 입찰공고 API 호출
+                # 날짜 설정 (최근 n일)
+                end_dt = datetime.now().strftime('%Y%m%d%H%M')
+                start_dt = (datetime.now() - timedelta(days=days_back)).strftime('%Y%m%d%H%M')
+
                 url = "http://apis.data.go.kr/1230000/BidPublicInfoService05/getBidPblancListInfoThng03"
                 params = {
-                    'serviceKey': auth_key,
-                    'bidNtceNm': search_keyword,
+                    'serviceKey': AUTH_KEY,
+                    'bidNtceNm': keyword,
                     'type': 'json',
-                    'numOfRows': str(num_rows),
-                    'pageNo': '1',
+                    'numOfRows': str(rows),
                     'inqryDiv': '1', # 공고일자 기준
-                    'inqryBgnDt': (datetime.now() - timedelta(days=30)).strftime('%Y%m%d%H%M'), # 최근 30일
-                    'inqryEndDt': datetime.now().strftime('%Y%m%d%H%M')
+                    'inqryBgnDt': start_dt,
+                    'inqryEndDt': end_dt
                 }
 
-                response = requests.get(url, params=params, timeout=10)
-                data = response.json()
-
-                # 3. 데이터 결과 출력
-                if 'response' in data and 'body' in data['response']:
-                    items = data['response']['body'].get('items', [])
-                    if items:
-                        df_bid = pd.DataFrame(items)
-                        # 필요한 컬럼만 정리 (공고명, 공고일, 기관명, 링크 등)
-                        display_cols = {
-                            'bidNtceNm': '공고명',
-                            'bidNtceDt': '공고일시',
-                            'ntceInsttNm': '공고기관',
-                            'dminsttNm': '수요기관',
-                            'bidNtceUrl': '공고상세URL'
-                        }
-                        df_show = df_bid[display_cols.keys()].rename(columns=display_cols)
-                        
-                        st.success(f"✅ '{search_keyword}' 관련 최신 공고 {len(df_show)}건을 찾았습니다.")
-                        st.data_editor(df_show, use_container_width=True, hide_index=True)
+                response = requests.get(url, params=params, timeout=15)
+                
+                # API 인증 에러 체크
+                if response.status_code == 200:
+                    data = response.json()
+                    if 'response' in data and 'body' in data['response']:
+                        items = data['response']['body'].get('items', [])
+                        if items:
+                            df = pd.DataFrame(items)
+                            # 요정비닐 검토용 컬럼 정리
+                            cols = {
+                                'bidNtceNm': '공고명',
+                                'bidNtceDt': '공고일시',
+                                'ntceInsttNm': '공고기관',
+                                'bidNtceUrl': '상세링크'
+                            }
+                            df_final = df[cols.keys()].rename(columns=cols)
+                            
+                            st.success(f"✅ '{keyword}' 관련 {len(df_final)}건의 공고를 찾았습니다.")
+                            st.dataframe(df_final, use_container_width=True)
+                        else:
+                            st.warning("🔍 해당 기간 내에 등록된 공고가 없습니다.")
                     else:
-                        st.info("검색된 최근 공고가 없습니다.")
+                        st.error("❌ API 응답 오류: 인증키가 아직 활성화되지 않았을 수 있습니다. (1~2시간 뒤 재시도)")
                 else:
-                    st.error("API 응답 데이터 형식이 올바르지 않습니다. (키 활성화 대기 중일 수 있음)")
-            
+                    st.error(f"❌ 서버 응답 에러: {response.status_code}")
+
             except Exception as e:
-                st.error(f"❌ 데이터 호출 실패: {e}")
-    elif not auth_key:
-        st.warning("🔑 공공데이터포털에서 발급받은 인증키를 입력해주세요.")
+                st.error(f"❌ 시스템 오류: {e}")
+
+    st.divider()
+    st.caption("※ 본 데이터는 조달청 나라장터 API를 통해 실시간으로 제공됩니다.")
