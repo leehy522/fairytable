@@ -559,7 +559,7 @@ elif menu == "🏛️ 나라장터 입찰":
                         'numOfRows': str(rows),
                         'pageNo': '1',         # 💡 페이지 번호 명시
                         'inqryDiv': '1', 
-                        'inqryBgnDt': start_dt
+                        'inqryBgnDt': start_dt,
                         'inqryEndDt': end_dt
                     }
                     res = requests.get(url, params=params, timeout=15)
@@ -583,7 +583,7 @@ elif menu == "🏛️ 나라장터 입찰":
                         'numOfRows': str(rows),
                         'pageNo': '1',         # 💡 페이지 번호 명시
                         'inqryDiv': '1', 
-                        'inqryBgnDt': start_dt
+                        'inqryBgnDt': start_dt,
                         'inqryEndDt': end_dt
                     }
                     res = requests.get(url, params=params, timeout=15)
