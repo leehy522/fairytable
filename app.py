@@ -16,14 +16,6 @@ from auth import check_password
 # 반드시 가장 먼저 호출
 st.set_page_config(page_title="요정비닐 스마트 시스템", layout="wide")
 
-# 사이드바 완전 숨기기
-st.markdown("""
-    <style>
-        [data-testid="stSidebar"] { display: none; }
-        [data-testid="collapsedControl"] { display: none; }
-    </style>
-""", unsafe_allow_html=True)
-
 # 로그인 체크
 if not check_password():
     st.stop()
