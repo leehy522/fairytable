@@ -520,84 +520,80 @@ elif menu == "📈 시장 지표 분석":
 
 # --- 메뉴 6: 나라장터 입찰 정보 ---
 elif menu == "🏛️ 나라장터 입찰":
-    st.title("🏛️ 나라장터 실시간 입찰 정보 (v1.6)")
-    st.info("💡 요정비닐 맞춤형: 비닐봉투, 쓰레기봉투, 폴리에틸렌 공고를 실시간으로 가져옵니다.")
+    st.title("🏛️ 나라장터 통합 정보 센터 (v1.7)")
+    st.info("💡 비닐/봉투류 실시간 입찰 공고 및 낙찰 결과를 한눈에 확인하세요.")
 
-    # 1. API 설정 (윤겸님 발급 키 적용)
-    # 보안을 위해 직접 코드에 적기보다 변수로 관리하는 것이 좋습니다.
+    # 1. 인증키 설정 (윤겸님이 발급받은 Decoding 키를 각각 넣으세요)
     AUTH_KEY = "9542280dba7856322b0e5c72c63c510c1fb83bc06c8d62eccab4f58324646cfd"
-    
-    col1, col2, col3 = st.columns([2, 1, 1])
-    with col1:
-        keyword = st.text_input("검색 키워드", value="비닐봉투")
-    with col2:
-        days_back = st.number_input("조회 기간(일)", min_value=1, max_value=30, value=7)
-    with col3:
-        rows = st.number_input("출력 개수", min_value=5, max_value=100, value=20)
 
-    if st.button("🚀 최신 입찰 공고 검색"):
-        with st.spinner("조달청 서버 접속 중..."):
-            try:
-                # 날짜 설정 (최근 n일)
-                end_dt = datetime.now().strftime('%Y%m%d')
-                start_dt = (datetime.now() - timedelta(days=days_back)).strftime('%Y%m%d')
+    # 2. 검색 설정 레이아웃
+    with st.expander("🔍 검색 조건 설정", expanded=True):
+        col1, col2, col3 = st.columns([2, 1, 1])
+        with col1:
+            keyword = st.text_input("검색 키워드", value="비닐봉투")
+        with col2:
+            days_back = st.number_input("조회 기간(일)", min_value=1, max_value=30, value=7)
+        with col3:
+            rows = st.number_input("출력 개수", min_value=5, max_value=100, value=20)
 
-                url = "http://apis.data.go.kr/1230000/BidPublicInfoService05/getBidPblancListInfoThng03"
-                params = {
-                    'serviceKey': AUTH_KEY,
-                    'bidNtceNm': keyword,
-                    'type': 'json',
-                    'numOfRows': str(rows),
-                    'pageNo': '1',
-                    'inqryDiv': '1', 
-                    'inqryBgnDt': start_dt + '0000', # 00시 00분 추가
-                    'inqryEndDt': end_dt + '2359'    # 23시 59분 추가
-                }
+    # 날짜 계산 (YYYYMMDD 형식)
+    end_dt = datetime.now().strftime('%Y%m%d')
+    start_dt = (datetime.now() - timedelta(days=days_back)).strftime('%Y%m%d')
 
-                response = requests.get(url, params=params, timeout=15)
-                
-                # API 인증 에러 체크
-                if response.status_code == 200:
-                    data = response.json()
-                    if 'response' in data and 'body' in data['response']:
-                        items = data['response']['body'].get('items', [])
+    tab1, tab2 = st.tabs(["📢 실시간 입찰 공고", "📊 낙찰(개찰) 결과"])
+
+    # --- 탭 1: 입찰 공고 조회 ---
+    with tab1:
+        if st.button("🚀 최신 공고 검색"):
+            with st.spinner("공고 데이터를 가져오는 중..."):
+                try:
+                    url = "http://apis.data.go.kr/1230000/BidPublicInfoService05/getBidPblancListInfoThng03"
+                    params = {
+                        'serviceKey': BID_KEY,
+                        'bidNtceNm': keyword,
+                        'type': 'json',
+                        'numOfRows': str(rows),
+                        'inqryDiv': '1', 
+                        'inqryBgnDt': start_dt + '0000',
+                        'inqryEndDt': end_dt + '2359'
+                    }
+                    res = requests.get(url, params=params, timeout=15)
+                    if res.status_code == 200:
+                        items = res.json().get('response', {}).get('body', {}).get('items', [])
                         if items:
                             df = pd.DataFrame(items)
-                            # 요정비닐 검토용 컬럼 정리
-                            cols = {
-                                'bidNtceNm': '공고명',
-                                'bidNtceDt': '공고일시',
-                                'ntceInsttNm': '공고기관',
-                                'bidNtceUrl': '상세링크'
-                            }
-                            df_final = df[cols.keys()].rename(columns=cols)
-                            
-                            st.success(f"✅ '{keyword}' 관련 {len(df_final)}건의 공고를 찾았습니다.")
-                            st.dataframe(df_final, use_container_width=True)
-                        else:
-                            st.warning("🔍 해당 기간 내에 등록된 공고가 없습니다.")
-                    else:
-                        st.error("❌ API 응답 오류: 인증키가 아직 활성화되지 않았을 수 있습니다. (1~2시간 뒤 재시도)")
-                else:
-                    st.error(f"❌ 서버 응답 에러: {response.status_code}")
+                            cols = {'bidNtceNm': '공고명', 'bidNtceDt': '공고일시', 'ntceInsttNm': '공고기관', 'bidNtceUrl': '상세링크'}
+                            st.dataframe(df[cols.keys()].rename(columns=cols), use_container_width=True)
+                        else: st.warning("🔍 해당 기간 내 공고가 없습니다.")
+                    else: st.error(f"❌ 서버 에러: {res.status_code} (키 활성화 대기 중일 수 있음)")
+                except Exception as e: st.error(f"❌ 시스템 오류: {e}")
 
-            except Exception as e:
-                st.error(f"❌ 시스템 오류: {e}")
-
-    st.divider()
-    st.caption("※ 본 데이터는 조달청 나라장터 API를 통해 실시간으로 제공됩니다.")
-
-    if st.button("📊 낙찰 결과(개찰) 확인"):
-        with st.spinner("최근 낙찰 데이터를 분석 중..."):
-            # 💡 주소가 'getBidPblancListInfoThng'에서 'getOpengResultListInfoThng'으로 바뀝니다.
-            url = "http://apis.data.go.kr/1230000/BidPublicInfoService05/getOpengResultListInfoThng03"
-            params = {
-                'serviceKey': AUTH_KEY,
-                'bidNtceNm': keyword,
-                'type': 'json',
-                'inqryDiv': '1', # 개찰일자 기준
-                'inqryBgnDt': start_dt + '0000',
-                'inqryEndDt': end_dt + '2359'
-            }
-        
-        # 호출 방식은 공고 조회와 동일합니다!
+    # --- 탭 2: 낙찰 결과 조회 ---
+    with tab2:
+        if st.button("📊 최근 낙찰 데이터 분석"):
+            with st.spinner("개찰 결과를 분석 중..."):
+                try:
+                    # 💡 주소가 'getOpengResultListInfoThng'으로 변경됩니다.
+                    url = "http://apis.data.go.kr/1230000/BidPublicInfoService05/getOpengResultListInfoThng03"
+                    params = {
+                        'serviceKey': RESULT_KEY, # 낙찰용 키 사용
+                        'bidNtceNm': keyword,
+                        'type': 'json',
+                        'numOfRows': str(rows),
+                        'inqryDiv': '1', 
+                        'inqryBgnDt': start_dt + '0000',
+                        'inqryEndDt': end_dt + '2359'
+                    }
+                    res = requests.get(url, params=params, timeout=15)
+                    if res.status_code == 200:
+                        items = res.json().get('response', {}).get('body', {}).get('items', [])
+                        if items:
+                            df_res = pd.DataFrame(items)
+                            # 결과용 컬럼 (낙찰업체, 낙찰금액 등)
+                            res_cols = {'bidNtceNm': '공고명', 'opengDt': '개찰일시', 'sucbidLwstRate': '낙찰하한율', 'bidWinnerNm': '낙찰업체'}
+                            # API마다 응답 컬럼명이 다를 수 있으니 존재하는 것만 필터링
+                            valid_cols = [c for c in res_cols.keys() if c in df_res.columns]
+                            st.dataframe(df_res[valid_cols].rename(columns=res_cols), use_container_width=True)
+                        else: st.warning("🔍 해당 기간 내 개찰 결과가 없습니다.")
+                    else: st.error(f"❌ 서버 에러: {res.status_code}")
+                except Exception as e: st.error(f"❌ 시스템 오류: {e}")
