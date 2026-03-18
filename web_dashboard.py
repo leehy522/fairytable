@@ -586,3 +586,18 @@ elif menu == "🏛️ 나라장터 입찰":
 
     st.divider()
     st.caption("※ 본 데이터는 조달청 나라장터 API를 통해 실시간으로 제공됩니다.")
+
+    if st.button("📊 낙찰 결과(개찰) 확인"):
+        with st.spinner("최근 낙찰 데이터를 분석 중..."):
+            # 💡 주소가 'getBidPblancListInfoThng'에서 'getOpengResultListInfoThng'으로 바뀝니다.
+            url = "http://apis.data.go.kr/1230000/BidPublicInfoService05/getOpengResultListInfoThng03"
+            params = {
+                'serviceKey': AUTH_KEY,
+                'bidNtceNm': keyword,
+                'type': 'json',
+                'inqryDiv': '1', # 개찰일자 기준
+                'inqryBgnDt': start_dt + '0000',
+                'inqryEndDt': end_dt + '2359'
+            }
+        
+        # 호출 방식은 공고 조회와 동일합니다!
