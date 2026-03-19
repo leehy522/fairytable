@@ -41,14 +41,22 @@ def _fetch_items(url_map: dict, keyword: str, start_dt: str,
     results = []
     for category, url in url_map.items():
         try:
-            res = requests.get(
-                url,
-                params=_make_params(keyword, start_dt, end_dt, rows),
-                timeout=15,
+            # ✅ params 대신 URL 직접 조립 (이중 인코딩 방지)
+            full_url = (
+                f"{url}"
+                f"?serviceKey={_AUTH_KEY}"
+                f"&bidNtceNm={keyword}"
+                f"&type=json"
+                f"&numOfRows={rows}"
+                f"&pageNo=1"
+                f"&inqryDiv=1"
+                f"&inqryBgnDt={start_dt}"
+                f"&inqryEndDt={end_dt}"
             )
+            res = requests.get(full_url, timeout=15)
+
             if res.status_code == 200:
                 raw = res.json().get("response", {}).get("body", {}).get("items", [])
-                # ✅ 1건일 때 dict로 오는 경우 처리
                 if isinstance(raw, dict):
                     items = [raw]
                 elif isinstance(raw, list):
