@@ -131,8 +131,6 @@ def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> No
 
     df_res = pd.DataFrame(all_results)
     
-    # 💡 API에서 끌어올 수 있는 낙찰자 및 점수 관련 영문 필드들을 모두 매핑합니다.
-    # (공고 종류에 따라 없는 데이터는 자동으로 숨겨집니다)
     res_cols = {
         "구분": "구분",
         "bidNtceNm": "공고명",
@@ -143,25 +141,25 @@ def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> No
         "sucbidLwstRate": "📉 낙찰하한율(%)",
     }
     
-       for col_key in res_cols.keys():
-            if col_key not in df_res.columns:
-                df_res[col_key] = None # 없는 데이터는 빈칸으로 채움
+    # 💡 API 데이터에 해당 컬럼이 없으면, 강제로 빈칸(None)을 만들어서라도 모든 열을 유지합니다.
+    # 들여쓰기를 바로 위 df_res 와 정확히 맞췄습니다.
+    for col_key in res_cols.keys():
+        if col_key not in df_res.columns:
+            df_res[col_key] = None
 
-        # 이제 필터링(valid_cols) 없이, 우리가 설정한 7개의 열을 무조건 화면에 띄웁니다.
-        display_df = df_res[list(res_cols.keys())].rename(columns=res_cols)
+    display_df = df_res[list(res_cols.keys())].rename(columns=res_cols)
 
-        st.success(f"✅ 총 {len(all_results)}건의 낙찰/개찰 데이터를 분석했습니다.")
+    st.success(f"✅ 총 {len(all_results)}건의 낙찰/개찰 데이터를 분석했습니다.")
     
-        st.dataframe(
-            display_df,
-            use_container_width=True,
-            hide_index=True,
-            # ... 하단 column_config 등 동일 ...
-            column_config={
-                "💰 투찰금액(원)": st.column_config.NumberColumn("💰 투찰금액(원)", format="%d"),
-                "💯 종합점수": st.column_config.NumberColumn("💯 종합점수", format="%.2f"),
-            }
-        )
+    st.dataframe(
+        display_df,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "💰 투찰금액(원)": st.column_config.NumberColumn("💰 투찰금액(원)", format="%d"),
+            "💯 종합점수": st.column_config.NumberColumn("💯 종합점수", format="%.2f"),
+        }
+    )
 
 
 # ── 메인 렌더링 ───────────────────────────────────────────
