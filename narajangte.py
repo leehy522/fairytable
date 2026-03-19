@@ -89,24 +89,29 @@ def _tab_bid_notice(keyword: str, start_dt: str, end_dt: str, rows: int) -> None
 
     df = pd.DataFrame(all_items)
     cols = {
-        "구분"       : "구분",
-        "bidNtceNm"  : "공고명",
-        "bidNtceDt"  : "공고일시",
+        "구분": "구분",
+        "bidNtceNm": "공고명",
+        "bidNtceDt": "공고일시",
         "ntceInsttNm": "공고기관",
-        "bidNtceUrl" : "상세링크",
+        "bidNtceUrl": "상세링크",
     }
-
     valid_cols = {k: v for k, v in cols.items() if k in df.columns}
-    display_df = df[list(valid_cols.keys())].rename(columns=valid_cols)
     
-    # 💡 [수정 후] 스마트 다중 키워드 필터 (띄어쓰기로 단어 분리)
-    # 사용자가 "재활용 봉투"라고 치면 ["재활용", "봉투"] 두 단어를 모두 가진 공고만 찾습니다.
+    # 원본 데이터프레임 (필터링 전)
+    raw_df = df[list(valid_cols.keys())].rename(columns=valid_cols)
+
+    # 💡 [추가됨] 원문 데이터를 접었다 펼칠 수 있는 공간
+    with st.expander("👀 나라장터 API 원본 데이터 보기 (필터링 전)", expanded=False):
+        st.info(f"API가 검색어와 조금이라도 연관 지어 가져온 총 {len(raw_df)}건의 날것 데이터입니다.")
+        st.dataframe(raw_df, use_container_width=True, hide_index=True)
+
+    # 띄어쓰기 기준 스마트 필터링 적용
+    display_df = raw_df.copy()
     for kw in keyword.split():
         display_df = display_df[display_df["공고명"].str.contains(kw, na=False)]
-        
-    st.success(f"✅ 총 {len(display_df)}건의 정확한 공고를 찾았습니다. (원문 데이터: {len(all_items)}건)")
-      
-    # 💡 column_config를 이용해 상세링크 컬럼을 '링크가기' 텍스트로 덮어씌웁니다.
+
+    st.success(f"✅ 필터링 완료: 총 {len(display_df)}건의 정확한 공고를 찾았습니다.")
+    
     st.dataframe(
         display_df,
         use_container_width=True,
@@ -115,11 +120,12 @@ def _tab_bid_notice(keyword: str, start_dt: str, end_dt: str, rows: int) -> None
             "상세링크": st.column_config.LinkColumn(
                 "상세링크",
                 help="클릭하면 나라장터 공고 상세 페이지로 이동합니다",
-                display_text="링크가기 🔗" # 표 화면에 보여질 깔끔한 텍스트
+                display_text="링크가기 🔗"
             )
         }
     )
-    
+
+
 # ── 탭 2: 낙찰 결과 ───────────────────────────────────────
 
 def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> None:
@@ -134,7 +140,6 @@ def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> No
         return
 
     df_res = pd.DataFrame(all_results)
-    
     res_cols = {
         "구분": "구분",
         "bidNtceNm": "공고명",
@@ -145,32 +150,15 @@ def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> No
         "sucbidLwstRate": "📉 낙찰하한율(%)",
     }
     
-    # 💡 API 데이터에 해당 컬럼이 없으면, 강제로 빈칸(None)을 만들어서라도 모든 열을 유지합니다.
-    # 들여쓰기를 바로 위 df_res 와 정확히 맞췄습니다.
     for col_key in res_cols.keys():
         if col_key not in df_res.columns:
             df_res[col_key] = None
 
-    display_df = df_res[list(res_cols.keys())].rename(columns=res_cols)
+    # 원본 데이터프레임 (필터링 전)
+    raw_df_res = df_res[list(res_cols.keys())].rename(columns=res_cols)
 
-    # 💡 [핵심 추가] 낙찰 결과에서도 검색어가 정확히 들어간 공고명만 필터링!
-    # 💡 [수정 후] 스마트 다중 키워드 필터 (띄어쓰기로 단어 분리)
-    # 사용자가 "재활용 봉투"라고 치면 ["재활용", "봉투"] 두 단어를 모두 가진 공고만 찾습니다.
-    for kw in keyword.split():
-        display_df = display_df[display_df["공고명"].str.contains(kw, na=False)]
-
-    st.success(f"✅ 총 {len(display_df)}건의 정확한 낙찰 데이터를 분석했습니다.")
-    
-    st.dataframe(
-        display_df,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "💰 투찰금액(원)": st.column_config.NumberColumn("💰 투찰금액(원)", format="%d"),
-            "💯 종합점수": st.column_config.NumberColumn("💯 종합점수", format="%.2f"),
-        }
-    )
-
+    # 💡 [추가됨] 원문 데이터를 접었다 펼칠 수 있는 공간
+    with st
 
 # ── 메인 렌더링 ───────────────────────────────────────────
 
