@@ -31,12 +31,12 @@ MENU_MAP = {
     "🏛️ 나라장터 입찰": "pages/narajangte.py"
 }
 
-selection = st.sidebar.radio("메뉴를 선택하세요", list(MENU_OPTIONS.keys()))
+selection = st.sidebar.radio("메뉴를 선택하세요", list(MENU_MAP.keys()))
 
 # 5. 페이지 이동
 if selection:
     try:
-        st.switch_page(MENU_OPTIONS[selection])
+        st.switch_page(MENU_MAP[selection])
     except Exception as e:
-        st.error(f"파일을 찾을 수 없습니다: {MENU_OPTIONS[selection]}")
+        st.error(f"파일을 찾을 수 없습니다: {MENU_MAP[selection]}")
         st.info("💡 깃허브의 파일명과 코드 내 경로가 일치하는지 확인해주세요.")
