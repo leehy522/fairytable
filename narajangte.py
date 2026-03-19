@@ -96,14 +96,26 @@ def _tab_bid_notice(keyword: str, start_dt: str, end_dt: str, rows: int) -> None
         "bidNtceUrl" : "상세링크",
     }
     valid_cols = {k: v for k, v in cols.items() if k in df.columns}
+    
+    # 출력할 데이터프레임 정리
+    display_df = df[list(valid_cols.keys())].rename(columns=valid_cols)
+    
     st.success(f"✅ 총 {len(all_items)}건의 공고(물품+용역)를 찾았습니다.")
+    
+    # 💡 column_config를 이용해 상세링크 컬럼을 '링크가기' 텍스트로 덮어씌웁니다.
     st.dataframe(
-        df[list(valid_cols.keys())].rename(columns=valid_cols),
+        display_df,
         use_container_width=True,
         hide_index=True,
+        column_config={
+            "상세링크": st.column_config.LinkColumn(
+                "상세링크",
+                help="클릭하면 나라장터 공고 상세 페이지로 이동합니다",
+                display_text="링크가기 🔗" # 표 화면에 보여질 깔끔한 텍스트
+            )
+        }
     )
-
-
+    
 # ── 탭 2: 낙찰 결과 ───────────────────────────────────────
 
 def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> None:
@@ -118,19 +130,33 @@ def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> No
         return
 
     df_res = pd.DataFrame(all_results)
+    
+    # 💡 API에서 끌어올 수 있는 낙찰자 및 점수 관련 영문 필드들을 모두 매핑합니다.
+    # (공고 종류에 따라 없는 데이터는 자동으로 숨겨집니다)
     res_cols = {
-        "구분"           : "구분",
-        "bidNtceNm"      : "공고명",
-        "opengDt"        : "개찰일시",
-        "bidWinnerNm"    : "낙찰업체",
-        "sucbidLwstRate" : "낙찰하한율",
+        "구분": "구분",
+        "bidNtceNm": "공고명",
+        "opengDt": "개찰일시",
+        "bidWinnerNm": "🏆 낙찰(1순위)업체",
+        "totScor": "💯 종합점수",
+        "tndrAmt": "💰 투찰금액(원)",
+        "sucbidLwstRate": "📉 낙찰하한율(%)",
     }
+    
     valid_cols = {k: v for k, v in res_cols.items() if k in df_res.columns}
-    st.success(f"✅ 총 {len(all_results)}건의 낙찰 데이터(물품+용역)를 분석했습니다.")
+    display_df = df_res[list(valid_cols.keys())].rename(columns=valid_cols)
+
+    st.success(f"✅ 총 {len(all_results)}건의 낙찰/개찰 데이터를 분석했습니다.")
+    
     st.dataframe(
-        df_res[list(valid_cols.keys())].rename(columns=valid_cols),
+        display_df,
         use_container_width=True,
         hide_index=True,
+        # 금액에 콤마(,)를 찍어주어 보기 편하게 만듭니다.
+        column_config={
+            "💰 투찰금액(원)": st.column_config.NumberColumn("💰 투찰금액(원)", format="%d"),
+            "💯 종합점수": st.column_config.NumberColumn("💯 종합점수", format="%.2f"),
+        }
     )
 
 
