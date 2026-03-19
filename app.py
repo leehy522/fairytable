@@ -27,12 +27,12 @@ st.sidebar.title("🚀 요정비닐 관리자")
 
 # 💡 파일명 앞에 숫자가 있다면 아래 경로도 '01_...', '02_...'로 똑같이 맞춰야 합니다!
 MENU_MAP = {
-    "🏷️ 요정비닐 상품 현황": "pages/product_status.py",
-    "🚚 밀크런 PPT 변환": "pages/milkrun_ppt.py",
-    "📦 택배 송장 변환": "pages/invoice.py",
-    "🏭 원가 시뮬레이터": "pages/cost_simulator.py",
-    "📈 시장 지표 분석": "pages/market_index.py",
-    "🏛️ 나라장터 입찰": "pages/narajangte.py"
+    "🏷️ 요정비닐 상품 현황": "product_status.py",
+    "🚚 밀크런 PPT 변환": "milkrun_ppt.py",
+    "📦 택배 송장 변환": "invoice.py",
+    "🏭 원가 시뮬레이터": "cost_simulator.py",
+    "📈 시장 지표 분석": "market_index.py",
+    "🏛️ 나라장터 입찰": "narajangte.py"
 }
 
 selection = st.sidebar.radio("메뉴를 선택하세요", list(MENU_MAP.keys()))
