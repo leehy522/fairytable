@@ -28,12 +28,12 @@ if not check_password():
 
 # 메뉴 import (로그인 통과 후)
 from pages import (
-    product_status,
-    milkrun_ppt,
-    invoice,
-    cost_simulator,
-    market_index,
-    narajangte,
+    01_product_status,
+    02_milkrun_ppt,
+    03_invoice,
+    04_cost_simulator,
+    05_market_index,
+    06_narajangte,
 )
 
 # ── 사이드바 ──────────────────────────────────────────────
