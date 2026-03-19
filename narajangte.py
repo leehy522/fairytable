@@ -99,9 +99,11 @@ def _tab_bid_notice(keyword: str, start_dt: str, end_dt: str, rows: int) -> None
     valid_cols = {k: v for k, v in cols.items() if k in df.columns}
     display_df = df[list(valid_cols.keys())].rename(columns=valid_cols)
     
-    # 💡 [핵심 추가] 나라장터가 던져준 데이터 중, 공고명에 '검색어'가 정확히 포함된 것만 살립니다!
-    display_df = display_df[display_df["공고명"].str.contains(keyword, na=False)]
-
+    # 💡 [수정 후] 스마트 다중 키워드 필터 (띄어쓰기로 단어 분리)
+    # 사용자가 "재활용 봉투"라고 치면 ["재활용", "봉투"] 두 단어를 모두 가진 공고만 찾습니다.
+    for kw in keyword.split():
+        display_df = display_df[display_df["공고명"].str.contains(kw, na=False)]
+        
     st.success(f"✅ 총 {len(display_df)}건의 정확한 공고를 찾았습니다. (원문 데이터: {len(all_items)}건)")
       
     # 💡 column_config를 이용해 상세링크 컬럼을 '링크가기' 텍스트로 덮어씌웁니다.
@@ -152,7 +154,10 @@ def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> No
     display_df = df_res[list(res_cols.keys())].rename(columns=res_cols)
 
     # 💡 [핵심 추가] 낙찰 결과에서도 검색어가 정확히 들어간 공고명만 필터링!
-    display_df = display_df[display_df["공고명"].str.contains(keyword, na=False)]
+    # 💡 [수정 후] 스마트 다중 키워드 필터 (띄어쓰기로 단어 분리)
+    # 사용자가 "재활용 봉투"라고 치면 ["재활용", "봉투"] 두 단어를 모두 가진 공고만 찾습니다.
+    for kw in keyword.split():
+        display_df = display_df[display_df["공고명"].str.contains(kw, na=False)]
 
     st.success(f"✅ 총 {len(display_df)}건의 정확한 낙찰 데이터를 분석했습니다.")
     
@@ -181,7 +186,7 @@ def render() -> None:
         with col2:
             days_back = st.number_input("조회 기간(일)", min_value=1, max_value=365, value=7)
         with col3:
-            rows = st.number_input("출력 개수", min_value=5, max_value=100, value=20)
+            rows = st.number_input("출력 개수", min_value=5, max_value=1000, value=100)
 
     end_dt   = datetime.now().strftime("%Y%m%d") + "2359"
     start_dt = (datetime.now() - timedelta(days=int(days_back))).strftime("%Y%m%d") + "0000"
