@@ -13,13 +13,13 @@ import streamlit as st
 # ── API 설정 ──────────────────────────────────────────────
 _AUTH_KEY = "9542280dba7856322b0e5c72c63c510c1fb83bc06c8d62eccab4f58324646cfd"
 
-# 1. 입찰 공고 최신 URL (윤겸님이 방금 찾아주신 /ad/BidPublicInfoService)
+# 1. 입찰 공고 최신 URL (숫자 03 제거 완료)
 _BID_URLS = {
     "물품": "https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoThng",
     "용역": "https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServ",
 }
 
-# 2. 낙찰 결과 최신 URL (아까 찾아주신 /as/ScsbidInfoService)
+# 2. 낙찰 결과 최신 URL (숫자 03 제거 및 낙찰 전용 오퍼레이션으로 변경 완료)
 _RESULT_URLS = {
     "물품": "https://apis.data.go.kr/1230000/as/ScsbidInfoService/getScsbidListSttusThng",
     "용역": "https://apis.data.go.kr/1230000/as/ScsbidInfoService/getScsbidListSttusServ",
@@ -32,11 +32,10 @@ def _make_params(keyword: str, start_dt: str, end_dt: str, rows: int) -> dict:
         "type"       : "json",
         "numOfRows"  : str(rows),
         "pageNo"     : "1",
-        "inqryDiv"   : "1",
-        "inqryBgnDt" : start_dt + "0000",
-        "inqryEndDt" : end_dt + "2359",
+        "inqryDiv"   : "1", # 1: 날짜 기준 조회
+        "inqryBgnDt" : start_dt + "0000", # API 문서 규격에 맞춘 12자리 (YYYYMMDDHHMM)
+        "inqryEndDt" : end_dt + "2359",   # API 문서 규격에 맞춘 12자리 (YYYYMMDDHHMM)
     }
-
 
 def _fetch_items(url_map: dict, keyword: str, start_dt: str,
                  end_dt: str, rows: int) -> list[dict]:
