@@ -8,7 +8,7 @@ st.set_page_config(page_title="요정비닐 스마트 시스템", layout="wide")
 st.markdown("""
     <style>
     /* 기본 네비게이션 숨기기 */
-    section[data-testid="stSidebarNav"] {display: none !important;}
+    section[data-testid="stSidebarNav"] {display:;}
     </style>
 """, unsafe_allow_html=True)
 
