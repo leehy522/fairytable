@@ -23,6 +23,14 @@ if not check_password():
     st.stop()  # 로그인 안 되면 여기서 멈춤
 
 # ─── 로그인 성공 후 실행되는 구역 ───
+from pages import (
+    product_status,
+    milkrun_ppt,
+    invoice,
+    cost_simulator,
+    market_index,
+    narajangte,
+)
 
 # 4. 메뉴 설정 (라디오 버튼)
 st.sidebar.title("🚀 요정비닐 관리자")
