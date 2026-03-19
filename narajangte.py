@@ -179,7 +179,7 @@ def render() -> None:
         with col1:
             keyword = st.text_input("검색 키워드", value="비닐봉투")
         with col2:
-            days_back = st.number_input("조회 기간(일)", min_value=1, max_value=30, value=7)
+            days_back = st.number_input("조회 기간(일)", min_value=1, max_value=365, value=7)
         with col3:
             rows = st.number_input("출력 개수", min_value=5, max_value=100, value=20)
 
