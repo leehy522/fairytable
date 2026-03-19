@@ -16,13 +16,13 @@ _AUTH_KEY = "9542280dba7856322b0e5c72c63c510c1fb83bc06c8d62eccab4f58324646cfd"
 # 1. 입찰 공고 최신 URL (숫자 03 제거 완료)
 _BID_URLS = {
     "물품": "https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoThng",
-    "용역": "https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServ",
+    "용역": "https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServc",
 }
 
 # 2. 낙찰 결과 최신 URL (숫자 03 제거 및 낙찰 전용 오퍼레이션으로 변경 완료)
 _RESULT_URLS = {
     "물품": "https://apis.data.go.kr/1230000/as/ScsbidInfoService/getScsbidListSttusThng",
-    "용역": "https://apis.data.go.kr/1230000/as/ScsbidInfoService/getScsbidListSttusServ",
+    "용역": "https://apis.data.go.kr/1230000/as/ScsbidInfoService/getScsbidListSttusServc",
 }
 
 def _make_params(keyword: str, start_dt: str, end_dt: str, rows: int) -> dict:
