@@ -148,21 +148,22 @@ def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> No
         st.warning(f"🔍 '{keyword}' 관련 최근 낙찰 결과가 없습니다.")
         return
 
-    # ... 앞부분 동일 (all_results 가져온 직후) ...
-
     df_res = pd.DataFrame(all_results)
     
-    # 💡 [핵심 추가] API가 링크를 안 주면? 공고번호(bidNtceNo)를 빼앗아서 직접 조립합니다!
+    # 💡 [핵심 안전장치] 공고번호가 없거나 비어있는 경우를 완벽하게 걸러냅니다!
     if "bidNtceNo" in df_res.columns:
-        # 나라장터 공고 상세조회용 기본 URL 뒤에 공고번호를 강제로 갖다 붙입니다.
-        df_res["bidNtceUrl"] = "https://www.g2b.go.kr:8101/ep/tbid/tbidFwd.do?bidno=" + df_res["bidNtceNo"]
+        # 공고번호가 정상적으로 존재할 때만 링크를 조립합니다.
+        df_res["bidNtceUrl"] = df_res["bidNtceNo"].apply(
+            lambda x: f"https://www.g2b.go.kr:8101/ep/tbid/tbidFwd.do?bidno={x}" if pd.notnull(x) else "https://www.g2b.go.kr"
+        )
     else:
-        # 혹시라도 공고번호마저 안 주면 나라장터 메인 홈피로라도 보냅니다.
+        # 공고번호 컬럼 자체가 없으면 강제로 빈칸을 만들고 메인 홈피로 연결합니다.
         df_res["bidNtceUrl"] = "https://www.g2b.go.kr"
+        df_res["bidNtceNo"] = None
 
     res_cols = {
         "구분": "구분",
-        "bidNtceNo": "공고번호", # 덤으로 공고번호도 화면에 띄웁니다
+        "bidNtceNo": "공고번호",
         "bidNtceNm": "공고명",
         "opengDt": "개찰일시",
         "bidWinnerNm": "🏆 낙찰(1순위)업체",
@@ -172,20 +173,7 @@ def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> No
         "bidNtceUrl": "상세링크", 
     }
     
-    # ... (이하 동일하게 진행) ...
-    
-    # 💡 [추가] "bidNtceUrl": "상세링크" 항목을 추가했습니다.
-    res_cols = {
-        "구분": "구분",
-        "bidNtceNm": "공고명",
-        "opengDt": "개찰일시",
-        "bidWinnerNm": "🏆 낙찰(1순위)업체",
-        "totScor": "💯 종합점수",
-        "tndrAmt": "💰 투찰금액(원)",
-        "sucbidLwstRate": "📉 낙찰하한율(%)",
-        "bidNtceUrl": "상세링크", 
-    }
-    
+    # 컬럼이 빠져있을 경우 빈칸으로 강제 생성하여 에러 원천 차단
     for col_key in res_cols.keys():
         if col_key not in df_res.columns:
             df_res[col_key] = None
@@ -207,7 +195,6 @@ def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> No
     df_thng = display_df[display_df["구분"] == "물품"]
     df_serv = display_df[display_df["구분"] == "용역"]
 
-    # 💡 [추가] 링크가기 버튼 모양으로 바꿔주는 설정을 추가했습니다.
     col_config = {
         "💰 투찰금액(원)": st.column_config.NumberColumn("💰 투찰금액(원)", format="%d"),
         "💯 종합점수": st.column_config.NumberColumn("💯 종합점수", format="%.2f"),
