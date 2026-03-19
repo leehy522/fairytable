@@ -22,7 +22,7 @@ if not check_password():
 st.sidebar.title("🚀 요정비닐 관리자")
 
 # 💡 파일명 앞에 숫자가 있다면 아래 경로도 '01_...', '02_...'로 똑같이 맞춰야 합니다!
-MENU_OPTIONS = {
+MENU_map = {
     "🏷️ 요정비닐 상품 현황": "pages/product_status.py",
     "🚚 밀크런 PPT 변환": "pages/milkrun_ppt.py",
     "📦 택배 송장 변환": "pages/invoice.py",
