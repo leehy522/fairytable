@@ -148,7 +148,31 @@ def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> No
         st.warning(f"🔍 '{keyword}' 관련 최근 낙찰 결과가 없습니다.")
         return
 
+    # ... 앞부분 동일 (all_results 가져온 직후) ...
+
     df_res = pd.DataFrame(all_results)
+    
+    # 💡 [핵심 추가] API가 링크를 안 주면? 공고번호(bidNtceNo)를 빼앗아서 직접 조립합니다!
+    if "bidNtceNo" in df_res.columns:
+        # 나라장터 공고 상세조회용 기본 URL 뒤에 공고번호를 강제로 갖다 붙입니다.
+        df_res["bidNtceUrl"] = "https://www.g2b.go.kr:8101/ep/tbid/tbidFwd.do?bidno=" + df_res["bidNtceNo"]
+    else:
+        # 혹시라도 공고번호마저 안 주면 나라장터 메인 홈피로라도 보냅니다.
+        df_res["bidNtceUrl"] = "https://www.g2b.go.kr"
+
+    res_cols = {
+        "구분": "구분",
+        "bidNtceNo": "공고번호", # 덤으로 공고번호도 화면에 띄웁니다
+        "bidNtceNm": "공고명",
+        "opengDt": "개찰일시",
+        "bidWinnerNm": "🏆 낙찰(1순위)업체",
+        "totScor": "💯 종합점수",
+        "tndrAmt": "💰 투찰금액(원)",
+        "sucbidLwstRate": "📉 낙찰하한율(%)",
+        "bidNtceUrl": "상세링크", 
+    }
+    
+    # ... (이하 동일하게 진행) ...
     
     # 💡 [추가] "bidNtceUrl": "상세링크" 항목을 추가했습니다.
     res_cols = {
