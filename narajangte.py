@@ -134,6 +134,8 @@ def _tab_bid_notice(keyword: str, start_dt: str, end_dt: str, rows: int) -> None
         column_config={"상세링크": st.column_config.LinkColumn("상세링크", display_text="링크가기 🔗")}
     )
 
+# ── 탭 2: 낙찰 공고 ───────────────────────────────────────
+
 
 def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> None:
     if not st.button("📊 최근 낙찰 데이터 분석"):
@@ -160,15 +162,7 @@ def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> No
         if col_key not in df_res.columns:
             df_res[col_key] = None
 
-    # 💡 2. 초강력 링크 생성기 (TypeError, AttributeError 원천 차단)
-    urls = []
-    for val in df_res["bidNtceNo"]:
-        # 데이터가 None이거나 비어있지 않은지 아주 깐깐하게 확인 후 링크 조립
-        if val and str(val).strip() and str(val).lower() != "nan":
-            urls.append(f"https://www.g2b.go.kr:8101/ep/tbid/tbidFwd.do?bidno={val}")
-        else:
-            urls.append("https://www.g2b.go.kr")
-    df_res["bidNtceUrl"] = urls
+    df_res["bidNtceUrl"] = "https://www.g2b.go.kr"
 
     # 이름 변경 및 데이터 정리
     raw_df_res = df_res[list(res_cols.keys())].rename(columns=res_cols)
