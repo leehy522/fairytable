@@ -77,10 +77,10 @@ def _fetch_items(url_map: dict, keyword: str, start_dt: str,
 # ── 탭 1: 입찰 공고 ───────────────────────────────────────
 
 def _tab_bid_notice(keyword: str, start_dt: str, end_dt: str, rows: int) -> None:
-    if not st.button("🚀 물품/용역 통합 검색"):
+    if not st.button("🚀 검색 시작"):
         return
 
-    with st.spinner(f"'{keyword}' 관련 모든 공고를 찾는 중..."):
+    with st.spinner(f"'{keyword}' 관련 공고를 찾는 중..."):
         all_items = _fetch_items(_BID_URLS, keyword, start_dt, end_dt, rows)
 
     if not all_items:
@@ -96,33 +96,39 @@ def _tab_bid_notice(keyword: str, start_dt: str, end_dt: str, rows: int) -> None
         "bidNtceUrl": "상세링크",
     }
     valid_cols = {k: v for k, v in cols.items() if k in df.columns}
-    
-    # 원본 데이터프레임 (필터링 전)
     raw_df = df[list(valid_cols.keys())].rename(columns=valid_cols)
 
-    # 💡 [추가됨] 원문 데이터를 접었다 펼칠 수 있는 공간
     with st.expander("👀 나라장터 API 원본 데이터 보기 (필터링 전)", expanded=False):
-        st.info(f"API가 검색어와 조금이라도 연관 지어 가져온 총 {len(raw_df)}건의 날것 데이터입니다.")
+        st.info(f"API가 가져온 총 {len(raw_df)}건의 날것 데이터입니다.")
         st.dataframe(raw_df, use_container_width=True, hide_index=True)
 
-    # 띄어쓰기 기준 스마트 필터링 적용
+    # 스마트 필터링
     display_df = raw_df.copy()
     for kw in keyword.split():
         display_df = display_df[display_df["공고명"].str.contains(kw, na=False)]
 
     st.success(f"✅ 필터링 완료: 총 {len(display_df)}건의 정확한 공고를 찾았습니다.")
     
+    # 💡 [핵심] 물품과 용역을 분리합니다
+    df_thng = display_df[display_df["구분"] == "물품"]
+    df_serv = display_df[display_df["구분"] == "용역"]
+
+    # 물품 표 렌더링
+    st.subheader(f"📦 물품 공고 ({len(df_thng)}건)")
     st.dataframe(
-        display_df,
+        df_thng,
         use_container_width=True,
         hide_index=True,
-        column_config={
-            "상세링크": st.column_config.LinkColumn(
-                "상세링크",
-                help="클릭하면 나라장터 공고 상세 페이지로 이동합니다",
-                display_text="링크가기 🔗"
-            )
-        }
+        column_config={"상세링크": st.column_config.LinkColumn("상세링크", display_text="링크가기 🔗")}
+    )
+
+    # 용역 표 렌더링
+    st.subheader(f"🛠️ 용역 공고 ({len(df_serv)}건)")
+    st.dataframe(
+        df_serv,
+        use_container_width=True,
+        hide_index=True,
+        column_config={"상세링크": st.column_config.LinkColumn("상세링크", display_text="링크가기 🔗")}
     )
 
 
@@ -154,31 +160,36 @@ def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> No
         if col_key not in df_res.columns:
             df_res[col_key] = None
 
-    # 원본 데이터프레임 (필터링 전)
     raw_df_res = df_res[list(res_cols.keys())].rename(columns=res_cols)
 
-    # 💡 [추가됨] 원문 데이터를 접었다 펼칠 수 있는 공간
     with st.expander("👀 나라장터 API 원본 데이터 보기 (필터링 전)", expanded=False):
         st.info(f"API가 가져온 총 {len(raw_df_res)}건의 날것 데이터입니다.")
         st.dataframe(raw_df_res, use_container_width=True, hide_index=True)
 
-    # 띄어쓰기 기준 스마트 필터링 적용
+    # 스마트 필터링
     display_df = raw_df_res.copy()
     for kw in keyword.split():
         display_df = display_df[display_df["공고명"].str.contains(kw, na=False)]
 
     st.success(f"✅ 필터링 완료: 총 {len(display_df)}건의 정확한 낙찰 데이터를 분석했습니다.")
     
-    st.dataframe(
-        display_df,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "💰 투찰금액(원)": st.column_config.NumberColumn("💰 투찰금액(원)", format="%d"),
-            "💯 종합점수": st.column_config.NumberColumn("💯 종합점수", format="%.2f"),
-        }
-    )
+    # 💡 [핵심] 물품과 용역을 분리합니다
+    df_thng = display_df[display_df["구분"] == "물품"]
+    df_serv = display_df[display_df["구분"] == "용역"]
 
+    # 공통 컬럼 설정
+    col_config = {
+        "💰 투찰금액(원)": st.column_config.NumberColumn("💰 투찰금액(원)", format="%d"),
+        "💯 종합점수": st.column_config.NumberColumn("💯 종합점수", format="%.2f"),
+    }
+
+    # 물품 표 렌더링
+    st.subheader(f"📦 물품 낙찰 결과 ({len(df_thng)}건)")
+    st.dataframe(df_thng, use_container_width=True, hide_index=True, column_config=col_config)
+
+    # 용역 표 렌더링
+    st.subheader(f"🛠️ 용역 낙찰 결과 ({len(df_serv)}건)")
+    st.dataframe(df_serv, use_container_width=True, hide_index=True, column_config=col_config)
 # ── 메인 렌더링 ───────────────────────────────────────────
 
 def render() -> None:
