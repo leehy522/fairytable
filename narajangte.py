@@ -135,8 +135,6 @@ def _tab_bid_notice(keyword: str, start_dt: str, end_dt: str, rows: int) -> None
     )
 
 
-# ── 탭 2: 낙찰 결과 ───────────────────────────────────────
-
 def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> None:
     if not st.button("📊 최근 낙찰 데이터 분석"):
         return
@@ -150,34 +148,29 @@ def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> No
 
     df_res = pd.DataFrame(all_results)
     
-    # 💡 [핵심 안전장치] 공고번호가 없거나 비어있는 경우를 완벽하게 걸러냅니다!
-    if "bidNtceNo" in df_res.columns:
-        # 공고번호가 정상적으로 존재할 때만 링크를 조립합니다.
-        df_res["bidNtceUrl"] = df_res["bidNtceNo"].apply(
-            lambda x: f"https://www.g2b.go.kr:8101/ep/tbid/tbidFwd.do?bidno={x}" if pd.notnull(x) else "https://www.g2b.go.kr"
-        )
-    else:
-        # 공고번호 컬럼 자체가 없으면 강제로 빈칸을 만들고 메인 홈피로 연결합니다.
-        df_res["bidNtceUrl"] = "https://www.g2b.go.kr"
-        df_res["bidNtceNo"] = None
-
+    # 💡 1. 필요한 모든 기둥(열)을 무조건 먼저 세웁니다. (KeyError 원천 차단)
     res_cols = {
         "구분": "구분",
         "bidNtceNo": "공고번호",
         "bidNtceNm": "공고명",
-        "opengDt": "개찰일시",
-        "bidWinnerNm": "🏆 낙찰(1순위)업체",
-        "totScor": "💯 종합점수",
-        "tndrAmt": "💰 투찰금액(원)",
-        "sucbidLwstRate": "📉 낙찰하한율(%)",
         "bidNtceUrl": "상세링크", 
     }
     
-    # 컬럼이 빠져있을 경우 빈칸으로 강제 생성하여 에러 원천 차단
     for col_key in res_cols.keys():
         if col_key not in df_res.columns:
             df_res[col_key] = None
 
+    # 💡 2. 초강력 링크 생성기 (TypeError, AttributeError 원천 차단)
+    urls = []
+    for val in df_res["bidNtceNo"]:
+        # 데이터가 None이거나 비어있지 않은지 아주 깐깐하게 확인 후 링크 조립
+        if val and str(val).strip() and str(val).lower() != "nan":
+            urls.append(f"https://www.g2b.go.kr:8101/ep/tbid/tbidFwd.do?bidno={val}")
+        else:
+            urls.append("https://www.g2b.go.kr")
+    df_res["bidNtceUrl"] = urls
+
+    # 이름 변경 및 데이터 정리
     raw_df_res = df_res[list(res_cols.keys())].rename(columns=res_cols)
 
     with st.expander("👀 나라장터 API 원본 데이터 보기 (필터링 전)", expanded=False):
