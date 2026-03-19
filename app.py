@@ -1,26 +1,24 @@
 import streamlit as st
 from auth import check_password
 
-# 1. 페이지 설정 (무조건 1번)
+# 1. 페이지 설정 (가장 먼저)
 st.set_page_config(page_title="요정비닐 스마트 시스템", layout="wide")
 
-# 2. [강력 처방] 스트림릿 자동 메뉴(영문 리스트)를 무조건 숨기는 CSS
+# 2. [필살기] 스트림릿 자동 메뉴 숨기기 (CSS)
+# ★ 로그인 체크보다 위에 있어야 합니다! ★
 st.markdown("""
     <style>
-    /* 1. 사이드바 내부의 자동 네비게이션 숨기기 */
+    /* 1. 사이드바의 자동 네비게이션 숨기기 */
     [data-testid="stSidebarNav"] {display: none !important;}
     
-    /* 2. 사이드바 맨 위 여백 줄이기 */
-    [data-testid="stSidebarNav"] + div {padding-top: 0rem;}
-    
-    /* 3. 모바일 환경에서도 숨기기 */
-    .st-emotion-cache-16idsys p {display: none !important;}
+    /* 2. 사이드바 상단 여백 제거 */
+    [data-testid="stSidebarNavContent"] {display: none !important;}
     </style>
 """, unsafe_allow_html=True)
 
 # 3. 로그인 체크
 if not check_password():
-    st.stop()  # 로그인 안 되면 여기서 멈춤
+    st.stop()
 
 # ─── 로그인 성공 후 실행되는 구역 ───
 
