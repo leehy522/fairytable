@@ -13,15 +13,17 @@ import streamlit as st
 # ── API 설정 ──────────────────────────────────────────────
 _AUTH_KEY = "9542280dba7856322b0e5c72c63c510c1fb83bc06c8d62eccab4f58324646cfd"
 
+# 1. 입찰 공고 최신 URL (윤겸님이 방금 찾아주신 /ad/BidPublicInfoService)
 _BID_URLS = {
-    "물품": "https://apis.data.go.kr/1230000/BidPublicInfoService05/getBidPblancListInfoThng03",
-    "용역": "https://apis.data.go.kr/1230000/BidPublicInfoService05/getBidPblancListInfoServ03",
-}
-_RESULT_URLS = {
-    "물품": "https://apis.data.go.kr/1230000/BidPublicInfoService05/getOpengResultListInfoThng03",
-    "용역": "https://apis.data.go.kr/1230000/BidPublicInfoService05/getOpengResultListInfoServ03",
+    "물품": "https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoThng",
+    "용역": "https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServ",
 }
 
+# 2. 낙찰 결과 최신 URL (아까 찾아주신 /as/ScsbidInfoService)
+_RESULT_URLS = {
+    "물품": "https://apis.data.go.kr/1230000/as/ScsbidInfoService/getScsbidListSttusThng",
+    "용역": "https://apis.data.go.kr/1230000/as/ScsbidInfoService/getScsbidListSttusServ",
+}
 
 def _make_params(keyword: str, start_dt: str, end_dt: str, rows: int) -> dict:
     return {
@@ -31,8 +33,8 @@ def _make_params(keyword: str, start_dt: str, end_dt: str, rows: int) -> dict:
         "numOfRows"  : str(rows),
         "pageNo"     : "1",
         "inqryDiv"   : "1",
-        "inqryBgnDt" : start_dt,
-        "inqryEndDt" : end_dt,
+        "inqryBgnDt" : start_dt + "0000",
+        "inqryEndDt" : end_dt + "2359",
     }
 
 
