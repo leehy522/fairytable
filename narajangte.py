@@ -158,7 +158,26 @@ def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> No
     raw_df_res = df_res[list(res_cols.keys())].rename(columns=res_cols)
 
     # 💡 [추가됨] 원문 데이터를 접었다 펼칠 수 있는 공간
-    with st
+    with st.expander("👀 나라장터 API 원본 데이터 보기 (필터링 전)", expanded=False):
+        st.info(f"API가 가져온 총 {len(raw_df_res)}건의 날것 데이터입니다.")
+        st.dataframe(raw_df_res, use_container_width=True, hide_index=True)
+
+    # 띄어쓰기 기준 스마트 필터링 적용
+    display_df = raw_df_res.copy()
+    for kw in keyword.split():
+        display_df = display_df[display_df["공고명"].str.contains(kw, na=False)]
+
+    st.success(f"✅ 필터링 완료: 총 {len(display_df)}건의 정확한 낙찰 데이터를 분석했습니다.")
+    
+    st.dataframe(
+        display_df,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "💰 투찰금액(원)": st.column_config.NumberColumn("💰 투찰금액(원)", format="%d"),
+            "💯 종합점수": st.column_config.NumberColumn("💯 종합점수", format="%.2f"),
+        }
+    )
 
 # ── 메인 렌더링 ───────────────────────────────────────────
 
