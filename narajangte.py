@@ -95,13 +95,15 @@ def _tab_bid_notice(keyword: str, start_dt: str, end_dt: str, rows: int) -> None
         "ntceInsttNm": "공고기관",
         "bidNtceUrl" : "상세링크",
     }
+
     valid_cols = {k: v for k, v in cols.items() if k in df.columns}
-    
-    # 출력할 데이터프레임 정리
     display_df = df[list(valid_cols.keys())].rename(columns=valid_cols)
     
-    st.success(f"✅ 총 {len(all_items)}건의 공고(물품+용역)를 찾았습니다.")
-    
+    # 💡 [핵심 추가] 나라장터가 던져준 데이터 중, 공고명에 '검색어'가 정확히 포함된 것만 살립니다!
+    display_df = display_df[display_df["공고명"].str.contains(keyword, na=False)]
+
+    st.success(f"✅ 총 {len(display_df)}건의 정확한 공고를 찾았습니다. (원문 데이터: {len(all_items)}건)")
+      
     # 💡 column_config를 이용해 상세링크 컬럼을 '링크가기' 텍스트로 덮어씌웁니다.
     st.dataframe(
         display_df,
@@ -149,7 +151,10 @@ def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> No
 
     display_df = df_res[list(res_cols.keys())].rename(columns=res_cols)
 
-    st.success(f"✅ 총 {len(all_results)}건의 낙찰/개찰 데이터를 분석했습니다.")
+    # 💡 [핵심 추가] 낙찰 결과에서도 검색어가 정확히 들어간 공고명만 필터링!
+    display_df = display_df[display_df["공고명"].str.contains(keyword, na=False)]
+
+    st.success(f"✅ 총 {len(display_df)}건의 정확한 낙찰 데이터를 분석했습니다.")
     
     st.dataframe(
         display_df,
