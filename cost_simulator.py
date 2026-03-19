@@ -93,7 +93,7 @@ def _section_production_cost(final_unit_price: float) -> None:
 
 
 def render() -> None:
-    st.title("🏭 원가 및 규격 시뮬레이터")
+    st.title("🏭 원가 시뮬레이터")
 
     _section_fabric_spec()
     final_unit_price = _section_material_price()
