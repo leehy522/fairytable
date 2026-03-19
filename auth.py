@@ -23,8 +23,8 @@ def check_password() -> bool:
     # 로그인 화면에서 사이드바 숨기기
     st.markdown("""
         <style>
-            [data-testid="stSidebar"] { display: none; }
-            [data-testid="collapsedControl"] { display: none; }
+            [data-testid="stSidebar"] { display: ; }
+            [data-testid="collapsedControl"] { display: ; }
         </style>
     """, unsafe_allow_html=True)
 
