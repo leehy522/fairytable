@@ -149,6 +149,8 @@ def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> No
         return
 
     df_res = pd.DataFrame(all_results)
+    
+    # 💡 [추가] "bidNtceUrl": "상세링크" 항목을 추가했습니다.
     res_cols = {
         "구분": "구분",
         "bidNtceNm": "공고명",
@@ -157,6 +159,7 @@ def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> No
         "totScor": "💯 종합점수",
         "tndrAmt": "💰 투찰금액(원)",
         "sucbidLwstRate": "📉 낙찰하한율(%)",
+        "bidNtceUrl": "상세링크", 
     }
     
     for col_key in res_cols.keys():
@@ -169,33 +172,30 @@ def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> No
         st.info(f"API가 가져온 총 {len(raw_df_res)}건의 날것 데이터입니다.")
         st.dataframe(raw_df_res, use_container_width=True, hide_index=True)
 
-    # 스마트 필터링
+    # 스마트 필터링 (OR 조건)
     display_df = raw_df_res.copy()
-    # 💡 [수정 후] 합집합 (OR 조건: 단어 중 하나라도 포함되면 합격)
-    # 사용자가 "재활용 봉투"라고 치면 "재활용" 이거나 "봉투"가 하나라도 들어간 공고를 모두 찾습니다.
     if keyword.strip():
         or_pattern = '|'.join(keyword.split())
         display_df = display_df[display_df["공고명"].str.contains(or_pattern, na=False, regex=True)]
 
     st.success(f"✅ 필터링 완료: 총 {len(display_df)}건의 정확한 낙찰 데이터를 분석했습니다.")
     
-    # 💡 [핵심] 물품과 용역을 분리합니다
     df_thng = display_df[display_df["구분"] == "물품"]
     df_serv = display_df[display_df["구분"] == "용역"]
 
-    # 공통 컬럼 설정
+    # 💡 [추가] 링크가기 버튼 모양으로 바꿔주는 설정을 추가했습니다.
     col_config = {
         "💰 투찰금액(원)": st.column_config.NumberColumn("💰 투찰금액(원)", format="%d"),
         "💯 종합점수": st.column_config.NumberColumn("💯 종합점수", format="%.2f"),
+        "상세링크": st.column_config.LinkColumn("상세링크", display_text="링크가기 🔗"),
     }
 
-    # 물품 표 렌더링
     st.subheader(f"📦 물품 낙찰 결과 ({len(df_thng)}건)")
     st.dataframe(df_thng, use_container_width=True, hide_index=True, column_config=col_config)
 
-    # 용역 표 렌더링
     st.subheader(f"🛠️ 용역 낙찰 결과 ({len(df_serv)}건)")
     st.dataframe(df_serv, use_container_width=True, hide_index=True, column_config=col_config)
+    
 # ── 메인 렌더링 ───────────────────────────────────────────
 
 def render() -> None:
