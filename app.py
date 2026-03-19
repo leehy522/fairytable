@@ -1,12 +1,13 @@
 import streamlit as st
 from auth import check_password
 
-# 1. 페이지 기본 설정 (가장 먼저 호출)
+# 1. 페이지 설정 (가장 먼저!)
 st.set_page_config(page_title="요정비닐 스마트 시스템", layout="wide")
 
-# 2. 스트림릿 기본 사이드바 메뉴 숨기기 (CSS 마법)
+# 2. 기본 메뉴 숨기기 (이 위치가 핵심입니다!)
 st.markdown("""
     <style>
+    /* 왼쪽 사이드바의 기본 네비게이션 숨기기 */
     [data-testid="stSidebarNav"] {display: none;}
     </style>
 """, unsafe_allow_html=True)
@@ -15,8 +16,9 @@ st.markdown("""
 if not check_password():
     st.stop()
 
-# 4. 사이드바 - 요정비닐 전용 메뉴 구성
+# 4. 로그인 성공 후 나타날 윤겸님만의 메뉴 (이전 코드 계속...)
 st.sidebar.title("🚀 요정비닐 관리자")
+# ... 라디오 버튼 코드 ...
 
 # 메뉴 이름과 실제 파일 경로 매칭 (파일명 앞에 숫자가 있어도 상관없음)
 MENU_OPTIONS = {
