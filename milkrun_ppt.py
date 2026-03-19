@@ -56,8 +56,3 @@ def render() -> None:
         except Exception as e:
             st.error(f"PPT 생성 중 에러가 발생했습니다: {e}")
 
-# ★ 이 줄이 있어야 app.py에서 호출했을 때 화면이 나옵니다! ★
-if __name__ == "__main__":
-    render()
-else:
-    render()
