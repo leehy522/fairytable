@@ -14,12 +14,12 @@ import streamlit as st
 _AUTH_KEY = "9542280dba7856322b0e5c72c63c510c1fb83bc06c8d62eccab4f58324646cfd"
 
 _BID_URLS = {
-    "물품": "http://apis.data.go.kr/1230000/BidPublicInfoService05/getBidPblancListInfoThng03",
-    "용역": "http://apis.data.go.kr/1230000/BidPublicInfoService05/getBidPblancListInfoServ03",
+    "물품": "https://apis.data.go.kr/1230000/BidPublicInfoService05/getBidPblancListInfoThng03",
+    "용역": "https://apis.data.go.kr/1230000/BidPublicInfoService05/getBidPblancListInfoServ03",
 }
 _RESULT_URLS = {
-    "물품": "http://apis.data.go.kr/1230000/BidPublicInfoService05/getOpengResultListInfoThng03",
-    "용역": "http://apis.data.go.kr/1230000/BidPublicInfoService05/getOpengResultListInfoServ03",
+    "물품": "https://apis.data.go.kr/1230000/BidPublicInfoService05/getOpengResultListInfoThng03",
+    "용역": "https://apis.data.go.kr/1230000/BidPublicInfoService05/getOpengResultListInfoServ03",
 }
 
 
@@ -38,7 +38,6 @@ def _make_params(keyword: str, start_dt: str, end_dt: str, rows: int) -> dict:
 
 def _fetch_items(url_map: dict, keyword: str, start_dt: str,
                  end_dt: str, rows: int) -> list[dict]:
-    """물품/용역 두 카테고리에서 데이터를 수집합니다."""
     results = []
     for category, url in url_map.items():
         try:
@@ -48,10 +47,19 @@ def _fetch_items(url_map: dict, keyword: str, start_dt: str,
                 timeout=15,
             )
             if res.status_code == 200:
-                items = res.json().get("response", {}).get("body", {}).get("items", [])
-                for item in items or []:
+                raw = res.json().get("response", {}).get("body", {}).get("items", [])
+                # ✅ 1건일 때 dict로 오는 경우 처리
+                if isinstance(raw, dict):
+                    items = [raw]
+                elif isinstance(raw, list):
+                    items = raw
+                else:
+                    items = []
+                for item in items:
                     item["구분"] = category
-                results.extend(items or [])
+                results.extend(items)
+            else:
+                st.warning(f"[{category}] HTTP 오류: {res.status_code}")
         except Exception as e:
             st.warning(f"[{category}] API 오류: {e}")
     return results
@@ -133,8 +141,8 @@ def render() -> None:
         with col3:
             rows = st.number_input("출력 개수", min_value=5, max_value=100, value=20)
 
-    end_dt   = datetime.now().strftime("%Y%m%d")
-    start_dt = (datetime.now() - timedelta(days=int(days_back))).strftime("%Y%m%d")
+    end_dt   = datetime.now().strftime("%Y%m%d") + "2359"
+    start_dt = (datetime.now() - timedelta(days=int(days_back))).strftime("%Y%m%d") + "0000"
 
     tab1, tab2 = st.tabs(["📢 실시간 입찰 공고", "📊 낙찰(개찰) 결과"])
     with tab1:
