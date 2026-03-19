@@ -143,8 +143,12 @@ def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> No
         "sucbidLwstRate": "📉 낙찰하한율(%)",
     }
     
-    valid_cols = {k: v for k, v in res_cols.items() if k in df_res.columns}
-    display_df = df_res[list(valid_cols.keys())].rename(columns=valid_cols)
+   for col_key in res_cols.keys():
+        if col_key not in df_res.columns:
+            df_res[col_key] = None # 없는 데이터는 빈칸으로 채움
+
+    # 이제 필터링(valid_cols) 없이, 우리가 설정한 7개의 열을 무조건 화면에 띄웁니다.
+    display_df = df_res[list(res_cols.keys())].rename(columns=res_cols)
 
     st.success(f"✅ 총 {len(all_results)}건의 낙찰/개찰 데이터를 분석했습니다.")
     
@@ -152,7 +156,7 @@ def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> No
         display_df,
         use_container_width=True,
         hide_index=True,
-        # 금액에 콤마(,)를 찍어주어 보기 편하게 만듭니다.
+        # ... 하단 column_config 등 동일 ...
         column_config={
             "💰 투찰금액(원)": st.column_config.NumberColumn("💰 투찰금액(원)", format="%d"),
             "💯 종합점수": st.column_config.NumberColumn("💯 종합점수", format="%.2f"),
