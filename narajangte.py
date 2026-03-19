@@ -104,8 +104,11 @@ def _tab_bid_notice(keyword: str, start_dt: str, end_dt: str, rows: int) -> None
 
     # 스마트 필터링
     display_df = raw_df.copy()
-    for kw in keyword.split():
-        display_df = display_df[display_df["공고명"].str.contains(kw, na=False)]
+    # 💡 [수정 후] 합집합 (OR 조건: 단어 중 하나라도 포함되면 합격)
+    # 사용자가 "재활용 봉투"라고 치면 "재활용" 이거나 "봉투"가 하나라도 들어간 공고를 모두 찾습니다.
+    if keyword.strip():
+        or_pattern = '|'.join(keyword.split())
+        display_df = display_df[display_df["공고명"].str.contains(or_pattern, na=False, regex=True)]
 
     st.success(f"✅ 필터링 완료: 총 {len(display_df)}건의 정확한 공고를 찾았습니다.")
     
@@ -168,8 +171,11 @@ def _tab_award_result(keyword: str, start_dt: str, end_dt: str, rows: int) -> No
 
     # 스마트 필터링
     display_df = raw_df_res.copy()
-    for kw in keyword.split():
-        display_df = display_df[display_df["공고명"].str.contains(kw, na=False)]
+    # 💡 [수정 후] 합집합 (OR 조건: 단어 중 하나라도 포함되면 합격)
+    # 사용자가 "재활용 봉투"라고 치면 "재활용" 이거나 "봉투"가 하나라도 들어간 공고를 모두 찾습니다.
+    if keyword.strip():
+        or_pattern = '|'.join(keyword.split())
+        display_df = display_df[display_df["공고명"].str.contains(or_pattern, na=False, regex=True)]
 
     st.success(f"✅ 필터링 완료: 총 {len(display_df)}건의 정확한 낙찰 데이터를 분석했습니다.")
     
@@ -200,7 +206,7 @@ def render() -> None:
     with st.expander("🔍 검색 조건 설정", expanded=True):
         col1, col2, col3 = st.columns([2, 1, 1])
         with col1:
-            keyword = st.text_input("검색 키워드", value="비닐봉투")
+            keyword = st.text_input("검색 키워드", value="비닐 봉투")
         with col2:
             days_back = st.number_input("조회 기간(일)", min_value=1, max_value=365, value=7)
         with col3:
