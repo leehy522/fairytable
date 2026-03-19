@@ -50,7 +50,7 @@ def _convert(src: pd.DataFrame) -> pd.DataFrame:
 
 
 def render() -> None:
-    st.title("📦 택배 송장 자동 변환기 (A-type)")
+    st.title("📦 택배 송장 변환")
     st.write("원본 주문 엑셀을 요정비닐 템플릿 양식에 맞춰 변환합니다.")
 
     col1, col2 = st.columns(2)
