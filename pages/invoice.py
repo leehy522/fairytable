@@ -17,7 +17,7 @@ _TARGET_COLUMNS = [
 ]
 
 _COLUMN_MAP = {
-    "주문번호": "Order ID","주문 ID",
+    "주문번호": "Order ID", "주문 ID",
     "받는사람": "Receiver Name", "수취인 이름",
     "전화번호1": "Mobile", "모바일",
     "전화번호2": "Mobile", "모바일",
