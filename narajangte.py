@@ -11,7 +11,7 @@ import streamlit as st
 
 
 # ── API 설정 ──────────────────────────────────────────────
-_AUTH_KEY = "9542280dba7856322b0e5c72c63c510c1fb83bc06c8d62eccab4f58324646cfd"
+_AUTH_KEY = st.secrets["NARA_API_KEY"]
 
 # 1. 입찰 공고 최신 URL (숫자 03 제거 완료)
 _BID_URLS = {
