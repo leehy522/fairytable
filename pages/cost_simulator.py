@@ -1,10 +1,11 @@
-"""
-pages/cost_simulator.py — 🏭 원가 시뮬레이터
-원단 규격 계산기 / 원재료 혼합 단가 / 롤당 생산 원가를 계산합니다.
-"""
-
 import streamlit as st
+from auth import check_password
 
+# 1. 페이지 기본 설정 및 보안 체크 (반드시 최상단에 위치)
+st.set_page_config(page_title="원가 시뮬레이터", page_icon="🏭", layout="wide")
+
+if not check_password():
+    st.stop()
 
 def _section_fabric_spec() -> None:
     """섹션 1: 원단 규격 정밀 계산기"""
@@ -92,9 +93,9 @@ def _section_production_cost(final_unit_price: float) -> None:
         st.metric("1롤당 제조 원가", f"₩{total_cost:,.0f}")
 
 
-def render() -> None:
-    st.title("🏭 원가 시뮬레이터")
+# 메인 실행부: render() 래퍼(wrapper)를 제거하고 직접 실행
+st.title("🏭 원가 시뮬레이터")
 
-    _section_fabric_spec()
-    final_unit_price = _section_material_price()
-    _section_production_cost(final_unit_price)
+_section_fabric_spec()
+final_unit_price = _section_material_price()
+_section_production_cost(final_unit_price)
