@@ -2,13 +2,18 @@ import streamlit as st
 import pandas as pd
 from streamlit_gsheets import GSheetsConnection
 from datetime import datetime
+from auth import check_password  # 보안 모듈 추가
 
-# 페이지 기본 설정
+# 1. 페이지 기본 설정 및 보안 체크 (반드시 최상단에 위치)
 st.set_page_config(page_title="요정비닐 원가 시뮬레이터", page_icon="📊", layout="wide")
+
+if not check_password():
+    st.stop()
+
 st.title("📊 요정비닐 원가 및 마진 시뮬레이터")
 st.markdown("---")
 
-# 1. 구글 시트 연결
+# 2. 구글 시트 연결
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
 except Exception as e:
@@ -18,7 +23,7 @@ except Exception as e:
 # 반드시 실제 스프레드시트 주소로 변경할 것
 SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/본인의_스프레드시트_ID_입력/edit"
 
-# 2. 데이터 호출
+# 3. 데이터 호출
 try:
     df_products = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="상품DB", ttl=0)
     df_costs = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="월별단가", ttl=0)
@@ -29,7 +34,7 @@ except Exception as e:
     st.error(f"데이터 호출 실패. 공유 권한 설정이나 시트명('상품DB', '월별단가')이 정확한지 확인하십시오: {e}")
     st.stop()
 
-# 3. 마진 계산 로직
+# 4. 마진 계산 로직
 def calculate_margin(products, costs, target_month):
     target_cost = costs[costs['적용월'] == target_month]
     
@@ -59,7 +64,7 @@ def calculate_margin(products, costs, target_month):
     
     return products
 
-# 4. 시뮬레이션 UI
+# 5. 시뮬레이션 UI
 with st.expander("🛠️ 데이터 연동 및 조건 설정", expanded=True):
     col1, col2 = st.columns(2)
     
@@ -78,7 +83,7 @@ with st.expander("🛠️ 데이터 연동 및 조건 설정", expanded=True):
             st.cache_data.clear()
             st.rerun()
 
-# 5. 결과 테이블 출력
+# 6. 결과 테이블 출력
 if not df_products.empty and not df_costs.empty:
     st.subheader(f"✅ {selected_month} 기준 마진 현황")
     final_df = calculate_margin(df_products.copy(), df_costs.copy(), selected_month)
