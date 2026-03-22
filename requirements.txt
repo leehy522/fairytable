@@ -1,9 +1,5 @@
-streamlit>=1.32.0
-yfinance>=0.2.38
-pandas>=2.2.0
-matplotlib>=3.8.0
-pypdf>=4.0.0
-python-pptx>=0.6.23
-openpyxl>=3.1.2
-requests>=2.31.0
+streamlit
+pandas
 streamlit-gsheets-connection
+openpyxl
+python-pptx
