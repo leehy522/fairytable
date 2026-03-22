@@ -1,15 +1,6 @@
 import subprocess
 import sys
 import os
-
-# 1. [핵심] 라이브러리 경로 강제 동기화
-# 실행 중인 파이썬 엔진에 직접 패키지를 주입하여 'No module named' 에러를 차단합니다.
-try:
-    import streamlit_gsheets
-except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "streamlit-gsheets-connection"])
-    import streamlit_gsheets
-
 import streamlit as st
 from auth import check_password
 import importlib.util
