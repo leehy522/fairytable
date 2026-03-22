@@ -1,12 +1,14 @@
 import subprocess
 import sys
+import os
 
-# 시스템에 gsheets 라이브러리가 없으면 강제로 설치 프로세스를 실행합니다.
+# [수정] 파이썬 환경에 맞게 라이브러리를 강제 설치하고 로드합니다.
 try:
-    import streamlit_gsheets
+    from streamlit_gsheets import GSheetsConnection
 except ImportError:
+    # 현재 실행 중인 파이썬(sys.executable)으로 직접 설치 명령 전달
     subprocess.check_call([sys.executable, "-m", "pip", "install", "streamlit-gsheets-connection"])
-    import streamlit_gsheets
+    from streamlit_gsheets import GSheetsConnection
 
 st.set_page_config(page_title="요정비닐 시스템", layout="wide")
 import streamlit as st
