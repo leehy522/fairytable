@@ -9,12 +9,12 @@ def check_password() -> bool:
     if "password_correct" not in st.session_state:
         st.session_state["password_correct"] = False
 
-    # 1. 로그인 성공 상태: 사이드바 원상 복구 CSS 주입
+    # 1. 로그인 성공 상태: 사이드바 명시적 노출 (block 속성 강제 적용)
     if st.session_state["password_correct"]:
         st.markdown("""
             <style>
-                [data-testid="stSidebar"] { display: unset !important; }
-                [data-testid="collapsedControl"] { display: unset !important; }
+                [data-testid="stSidebar"] { display: block !important; }
+                [data-testid="collapsedControl"] { display: block !important; }
             </style>
         """, unsafe_allow_html=True)
         return True
