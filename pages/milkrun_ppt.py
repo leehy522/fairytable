@@ -1,16 +1,3 @@
-"""
-pages/milkrun_ppt.py — 🚚 밀크런 PPT 변환 (v4.98 로직)
-PDF 발주서를 파싱 → 편집 → PPTX 생성까지 담당합니다.
-
-내부 헬퍼 함수:
-  get_pallet_capacity  : SKU별 팔레트 적재량 반환
-  duplicate_slide      : 슬라이드 복제
-  set_bold_text        : TextFrame 굵기/폰트 설정
-  fill_slide_data      : 슬라이드에 데이터 채우기
-  _extract_pdf_data    : PDF → 발주 데이터 추출
-  _build_pptx          : 편집된 DataFrame → PPTX 생성
-"""
-
 import copy
 import io
 import re
@@ -20,7 +7,17 @@ import pypdf
 import streamlit as st
 from pptx import Presentation
 from pptx.util import Pt
+from auth import check_password
 
+# 1. 페이지 기본 설정 및 보안 체크 (최상단 배치)
+st.set_page_config(page_title="밀크런 PPT 변환", page_icon="🚚", layout="wide")
+
+if not check_password():
+    st.stop()
+
+# 2. 세션 상태 안전 초기화
+if "extracted_data" not in st.session_state:
+    st.session_state.extracted_data = []
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  헬퍼 함수
@@ -39,7 +36,6 @@ def get_pallet_capacity(sku: str) -> int:
         return 560
     return 300
 
-
 def duplicate_slide(prs: Presentation, index: int):
     """index번 슬라이드를 맨 뒤에 복제해서 반환합니다."""
     template = prs.slides[index]
@@ -47,15 +43,12 @@ def duplicate_slide(prs: Presentation, index: int):
         prs.slide_layouts[6] if len(prs.slide_layouts) > 6 else prs.slide_layouts[0]
     )
     new_slide = prs.slides.add_slide(blank_layout)
-    # 빈 레이아웃의 기본 도형 제거
     for shp in list(new_slide.shapes):
         new_slide.shapes._spTree.remove(shp.element)
-    # 원본 도형 복사
     for shape in template.shapes:
         new_el = copy.deepcopy(shape.element)
         new_slide.shapes._spTree.insert_element_before(new_el, "p:extLst")
     return new_slide
-
 
 def set_bold_text(text_frame, content, is_bold: bool = True, font_size=None) -> None:
     """TextFrame 전체를 content로 교체하고 굵기/크기를 설정합니다."""
@@ -65,7 +58,6 @@ def set_bold_text(text_frame, content, is_bold: bool = True, font_size=None) -> 
             run.font.bold = is_bold
             if font_size:
                 run.font.size = Pt(font_size)
-
 
 def fill_slide_data(slide, p: dict, po_num: str, fc_name: str,
                     year: str, month: str, day: str) -> None:
@@ -125,7 +117,6 @@ def fill_slide_data(slide, p: dict, po_num: str, fc_name: str,
             except Exception:
                 pass
 
-
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  PDF 데이터 추출
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -133,15 +124,12 @@ def fill_slide_data(slide, p: dict, po_num: str, fc_name: str,
 def _extract_pdf_data(pdf_files) -> list[dict]:
     """업로드된 PDF 리스트에서 발주 데이터를 추출합니다. (홀수 페이지만)"""
     all_extracted = []
-
     for pdf_file in pdf_files:
         reader = pypdf.PdfReader(pdf_file)
         for i, page in enumerate(reader.pages):
             if i % 2 != 0:          # 짝수 인덱스(짝수 장) 스킵
                 continue
-
             text = page.extract_text() + "\n"
-
             po_match = re.search(
                 r"(?:발주번호|PO|no|Info)\s*[:\s\n]*(\d{9})", text, re.I
             ) or re.search(r"(\d{9})", text)
@@ -182,9 +170,7 @@ def _extract_pdf_data(pdf_files) -> list[dict]:
                         "date": date_raw,
                     })
                     processed_in_page.add(sku)
-
     return all_extracted
-
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  PPTX 생성
@@ -193,8 +179,6 @@ def _extract_pdf_data(pdf_files) -> list[dict]:
 def _build_pptx(tpl_file, edited_df: pd.DataFrame) -> bytes:
     """편집된 DataFrame으로 최종 PPTX를 생성하고 bytes를 반환합니다."""
     prs = Presentation(tpl_file)
-
-    # 슬라이드를 1장만 남기기
     while len(prs.slides) > 1:
         rId = prs.slides._sle[1].rId
         prs.part.drop_rel(rId)
@@ -249,22 +233,18 @@ def _build_pptx(tpl_file, edited_df: pd.DataFrame) -> bytes:
     prs.save(ppt_out)
     return ppt_out.getvalue()
 
-
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#  Streamlit 렌더링
+#  메인 UI 실행부 (render 래퍼 제거)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-def render() -> None:
-    st.title("🚚 밀크런 통합 편집 시스템 (v4.98 로직 이식)")
+st.title("🚚 밀크런 통합 편집 시스템 (v4.98 로직 이식)")
 
-    tpl_file = st.file_uploader("1. 양식 PPT 업로드", type=["pptx"])
-    pdf_files = st.file_uploader(
-        "2. 발주서 PDF 업로드 (다중 선택)", type=["pdf"], accept_multiple_files=True
-    )
+tpl_file = st.file_uploader("1. 양식 PPT 업로드", type=["pptx"])
+pdf_files = st.file_uploader(
+    "2. 발주서 PDF 업로드 (다중 선택)", type=["pdf"], accept_multiple_files=True
+)
 
-    if not (tpl_file and pdf_files):
-        return
-
+if tpl_file and pdf_files:
     # ── PDF 분석 ──────────────────────────────────────
     if st.button("🔍 발주서 데이터 정밀 분석 (홀수 장 전용)"):
         with st.spinner("PDF 분석 중..."):
@@ -272,25 +252,23 @@ def render() -> None:
         st.rerun()
 
     # ── 편집 테이블 ───────────────────────────────────
-    if not st.session_state.get("extracted_data"):
-        return
+    if st.session_state.extracted_data:
+        st.subheader("📊 발주 데이터 통합 편집")
+        edited_df = st.data_editor(
+            pd.DataFrame(st.session_state.extracted_data),
+            num_rows="dynamic",
+            use_container_width=True,
+        )
 
-    st.subheader("📊 발주 데이터 통합 편집")
-    edited_df = st.data_editor(
-        pd.DataFrame(st.session_state.extracted_data),
-        num_rows="dynamic",
-        use_container_width=True,
-    )
-
-    # ── PPT 생성 ──────────────────────────────────────
-    if st.button("🚀 지능형 합짐 및 PPT 생성"):
-        try:
-            ppt_bytes = _build_pptx(tpl_file, edited_df)
-            st.download_button(
-                "📥 최종 PPT 다운로드",
-                ppt_bytes,
-                "밀크런_수량수정_결과.pptx",
-            )
-            st.success("✅ PPT 생성 완료!")
-        except Exception as e:
-            st.error(f"PPT 생성 중 에러: {e}")
+        # ── PPT 생성 ──────────────────────────────────────
+        if st.button("🚀 지능형 합짐 및 PPT 생성"):
+            try:
+                ppt_bytes = _build_pptx(tpl_file, edited_df)
+                st.download_button(
+                    "📥 최종 PPT 다운로드",
+                    ppt_bytes,
+                    "밀크런_수량수정_결과.pptx",
+                )
+                st.success("✅ PPT 생성 완료!")
+            except Exception as e:
+                st.error(f"PPT 생성 중 에러: {e}")
