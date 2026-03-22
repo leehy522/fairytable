@@ -9,8 +9,14 @@ def check_password() -> bool:
     if "password_correct" not in st.session_state:
         st.session_state["password_correct"] = False
 
-    # 1. 로그인 성공 상태: 어떠한 CSS도 주입하지 않고 스트림릿 기본값에 위임합니다.
+    # 1. 로그인 성공 상태: 숨김 속성을 파괴하고 flex 구조로 강제 복원
     if st.session_state["password_correct"]:
+        st.markdown("""
+            <style>
+                [data-testid="stSidebar"] { display: flex !important; visibility: visible !important; }
+                [data-testid="collapsedControl"] { display: flex !important; visibility: visible !important; }
+            </style>
+        """, unsafe_allow_html=True)
         return True
 
     # 2. 미인증 대기 상태: 사이드바 원천 차단 CSS 주입
