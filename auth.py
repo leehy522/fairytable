@@ -20,12 +20,12 @@ def check_password() -> bool:
         return True
 
     # 2. 미인증 대기 상태: 사이드바 원천 차단 CSS 주입
-    #st.markdown("""
-    #    <style>
-    #       [data-testid="stSidebar"] { display: none !important; }
-    #       [data-testid="collapsedControl"] { display: none !important; }
-    #    </style>
-    #""", unsafe_allow_html=True)
+     st.markdown("""
+         <style>
+            [data-testid="stSidebar"] { display: none !important; }
+            [data-testid="collapsedControl"] { display: none !important; }
+         </style>
+     """, unsafe_allow_html=True)
 
     # 3. 보안 키 검증 (Fail-Closed)
     try:
