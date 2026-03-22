@@ -21,7 +21,7 @@ except Exception as e:
     st.stop()
 
 # 반드시 실제 스프레드시트 주소로 변경할 것
-SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/본인의_스프레드시트_ID_입력/edit"
+SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/13ldXPSVT7CFyNZRj-6Rlv3aXMqOhflquUtcZom5cJzU/edit?usp=sharing"
 
 # 3. 데이터 호출
 try:
