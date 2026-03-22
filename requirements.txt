@@ -3,3 +3,5 @@ pandas
 streamlit-gsheets-connection
 openpyxl
 python-pptx
+yfinance
+pypdf
