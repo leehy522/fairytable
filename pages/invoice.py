@@ -17,12 +17,13 @@ _TARGET_COLUMNS = [
 ]
 
 _COLUMN_MAP = {
-    "주문번호": "Order ID",
-    "받는사람": "Receiver Name",
-    "전화번호1": "Mobile",
-    "우편번호": "Zip Code",
-    "상세주소": "Detailed address",
-    "상품명": "Product Information"
+    "주문번호": "Order ID","주문 ID",
+    "받는사람": "Receiver Name", "수취인 이름",
+    "전화번호1": "Mobile", "모바일",
+    "전화번호2": "Mobile", "모바일",
+    "우편번호": "Zip Code", "우편번호",
+    "상세주소": "Detailed address", "상세 주소",
+    "상품명": "Product Information", "제품 정보"
 }
 
 _CITY_CANDIDATES = ["City", "city", "도시", "시", "시/군/구"]
