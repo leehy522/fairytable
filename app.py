@@ -1,5 +1,12 @@
-import streamlit as st
-from auth import check_password
+import subprocess
+import sys
+
+# 시스템에 gsheets 라이브러리가 없으면 강제로 설치 프로세스를 실행합니다.
+try:
+    import streamlit_gsheets
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "streamlit-gsheets-connection"])
+    import streamlit_gsheets
 
 st.set_page_config(page_title="요정비닐 시스템", layout="wide")
 import streamlit as st
