@@ -11,7 +11,7 @@ if not check_password():
 
 # 2. '웹에 게시' URL 폐기 및 안전한 편집용 URL 적용
 # 주의: 이전에 원가 시뮬레이터에서 사용한 것과 동일한 스프레드시트 주소를 입력하십시오.
-SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/본인의_스프레드시트_ID_입력/edit"
+SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/13ldXPSVT7CFyNZRj-6Rlv3aXMqOhflquUtcZom5cJzU/edit?usp=sharing"
 
 @st.cache_data(ttl=60)
 def _load_data() -> pd.DataFrame:
