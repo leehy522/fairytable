@@ -29,7 +29,15 @@ MENU_MAP = {
 # 4. 강제 사이드바 생성
 st.sidebar.title("🚀 요정비닐 관리자")
 st.sidebar.markdown("---")
-selection = st.sidebar.radio("메뉴를 선택하세요", list(MENU_MAP.keys()))
+
+# 기본 선택값을 '홈'으로 두고 싶다면 메뉴에 '🏠 홈'을 추가하는 것이 좋습니다.
+menu_list = ["🏠 홈"] + list(MENU_MAP.keys())
+selection = st.sidebar.radio("메뉴를 선택하세요", menu_list)
+
+st.sidebar.markdown("---")
+if st.sidebar.button("🔒 로그아웃"):
+    st.session_state.password_correct = False
+    st.rerun()
 
 # 5. 동적 페이지 로딩 로직 (핵심)
 def load_page(file_name):
@@ -47,13 +55,18 @@ def load_page(file_name):
     except Exception as e:
         st.error(f"❌ 페이지 로딩 중 오류 발생: {e}")
 
-# 선택된 메뉴 실행
-if selection:
-    load_page(MENU_MAP[selection])
-# 여기서 로그인 체크를 호출하면, 사이드바 숨김/노출 여부는 auth.py가 알아서 통제합니다.
-if not check_password():
-    st.stop()
+# 6. 화면 출력부 (핵심 수정 구간)
+if selection == "🏠 홈":
+    # 홈 메뉴일 때만 대시보드 메인 제목을 보여줍니다.
+    st.title("🚀 요정비닐 통합 대시보드")
+    st.success("✅ 관리자 인증이 완료되었습니다.")
+    st.info("👈 좌측 사이드바 메뉴를 열어 업무를 선택하십시오.")
+    
+    # 여기에 공장 가동 현황 요약이나 공지사항을 넣으면 완벽합니다.
+    st.divider()
+    st.write("현재 시스템 버전: v2.0 (모듈화 완료)")
 
-st.title("🚀 요정비닐 통합 대시보드")
-st.success("✅ 관리자 인증이 완료되었습니다.")
-st.info("👈 좌측 사이드바 메뉴를 열어 원하는 업무를 선택하십시오.")
+else:
+    # 홈이 아닌 다른 메뉴를 클릭했을 때는 '요정비닐 통합 대시보드' 제목 없이 
+    # 해당 페이지의 내용만 깔끔하게 출력합니다.
+    load_page(MENU_MAP[selection])
