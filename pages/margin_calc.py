@@ -33,8 +33,6 @@ def show_margin_calc():
         
         sinjae = float(target_cost['신재'])
         jaesaeng = float(target_cost['재생'])
-        im_sinjae = float(target_cost['임가공(신재)'])
-        im_jaesaeng = float(target_cost['임가공(재생)'])
         anlyo_price = float(target_cost['안료'])
 
         # 4. 마진 계산 내부 함수 (들여쓰기 수정됨)
