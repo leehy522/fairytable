@@ -1,25 +1,24 @@
 import streamlit as st
 import pandas as pd
+from urllib.parse import quote # 한글 주소 변환을 위해 추가
 from auth import check_password
 
 def show_margin_calc():
     st.title("💰 월별 마진 시뮬레이션")
 
     try:
-        # 1. 시트 URL 설정 (공유 권한이 '링크가 있는 모든 사용자'여야 합니다)
         sheet_id = "13ldXPSVT7CFyNZRj-6Rlv3aXMqOhflquUtcZom5cJzU"
         
-        # 상품목록과 원가기준 시트를 각각 Pandas로 직접 읽어옴
-        url_products = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet=상품목록"
-        url_costs = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet=원가기준"
+        # 한글 시트 이름을 URL용으로 변환
+        sheet_name_1 = quote("상품목록")
+        sheet_name_2 = quote("원가기준")
         
+        url_products = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name_1}"
+        url_costs = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name_2}"
+        
+        # 이후 로직은 동일
         df_products = pd.read_csv(url_products)
         df_costs = pd.read_csv(url_costs)
-
-        # 2. 데이터 전처리 (공백 제거 및 '월' 문자열 변환)
-        df_products.columns = df_products.columns.str.strip()
-        df_costs.columns = df_costs.columns.str.strip()
-        df_costs['월'] = df_costs['월'].astype(str).str.strip()
 
         # 3. 입력값 설정
         months = df_costs['월'].unique().tolist()
