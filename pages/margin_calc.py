@@ -40,12 +40,12 @@ def show_margin_calc():
         def calc_row(row):
             try:
                 # 데이터 타입 강제 변환
-                garo = pd.to_numeric(row['가로'], errors='coerce')
-                sero = pd.to_numeric(row['세로'], errors='coerce')
-                dukki = pd.to_numeric(row['두께'], errors='coerce')
+                garo = pd.to_numeric(row['가로(cm)'], errors='coerce')
+                sero = pd.to_numeric(row['세로(cm)'], errors='coerce')
+                dukki = pd.to_numeric(row['두께(T)'], errors='coerce')
                 maesu = pd.to_numeric(row['매수'], errors='coerce')
                 s_ratio = pd.to_numeric(row['신재비율'], errors='coerce')
-                j_ratio = pd.to_numeric(row['재생비율'], errors='coerce')
+                j_ratio = pd.to_numeric(row['안료비율'], errors='coerce')
 
                 # 1장 원가 및 수익 계산
                 one_cost = (s_ratio * sinjae + j_ratio * jaesaeng + 
