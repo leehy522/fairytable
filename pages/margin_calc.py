@@ -42,30 +42,38 @@ def show_margin_calc():
             try:
                 def clean_num(value):
                     if pd.isna(value): return 0
-                    s = str(value).replace(',', '').strip()
+                    s = str(value).replace(',', '').replace('%', '').strip()
                     return pd.to_numeric(s, errors='coerce')
 
-                # 데이터 세척
-                garo = clean_num(row['가로'])
-                sero = clean_num(row['세로'])
-                dukki = clean_num(row['두께'])
-                maesu = clean_num(row['매수'])
-                s_ratio = clean_num(row['신재비율'])
-                j_ratio = clean_num(row['재생비율'])
-                a_ratio = clean_num(row['안료비율'])
+                # 1. 데이터 추출 (시트 이름에 공백이 있어도 찾을 수 있게 보완)
+                garo = clean_num(row.get('가로', 0))
+                sero = clean_num(row.get('세로', 0))
+                dukki = clean_num(row.get('두께', 0))
+                maesu = clean_num(row.get('매수', 0))
+                
+                # 비율 데이터 추출 (이름이 '신재 비율'이든 '신재비율'이든 찾음)
+                s_ratio = clean_num(next((row[k] for k in row.index if '신재' in k and '비율' in k), 0))
+                j_ratio = clean_num(next((row[k] for k in row.index if '재생' in k and '비율' in k), 0))
+                a_ratio = clean_num(next((row[k] for k in row.index if '안료' in k and '비율' in k), 0))
+                
+                # 만약 비율이 1보다 크면(예: 2.7) 100으로 나누어 소수점(0.027)으로 변환
+                if s_ratio > 1: s_ratio /= 100
+                if j_ratio > 1: j_ratio /= 100
+                if a_ratio > 1: a_ratio /= 100
 
-                # 원료비 + 가공비 공식 적용
+                # 2. 원가 계산 로직
                 material_cost = (s_ratio * sinjae) + (j_ratio * jaesaeng) + (a_ratio * anlyo_price)
                 processing_fee = im_sinjae if s_ratio > 0 else im_jaesaeng
-
-                # 1장 원가 = (원료비 + 가공비) * (부피 * 비중)
+                
+                # 1장 원가 = (원료비 + 가공비) * (가로 * 세로 * 두께 * 비중)
                 one_cost = (material_cost + processing_fee) * (garo * sero * dukki * 0.00000184)
                 
                 total_cost = round(one_cost * maesu, 0)
-                nap_ga = clean_num(row['쿠팡 로켓 납품가(부가세 별도)'])
-                pan_ga = clean_num(row['쿠팡 판매가'])
+                nap_ga = clean_num(row.get('쿠팡 로켓 납품가(부가세 별도)', 0))
+                pan_ga = clean_num(row.get('쿠팡 판매가', 0))
                 profit = nap_ga - total_cost
                 
+                # None 방지를 위해 0이라도 반환
                 return pd.Series([total_cost, nap_ga, pan_ga, profit])
             except:
                 return pd.Series([0, 0, 0, 0])
