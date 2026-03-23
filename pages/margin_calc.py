@@ -45,39 +45,41 @@ def show_margin_calc():
                     s = str(value).replace(',', '').replace('%', '').strip()
                     return pd.to_numeric(s, errors='coerce')
 
-                # 1. 데이터 추출 (시트 이름에 공백이 있어도 찾을 수 있게 보완)
+                # 1. 제품 규격 및 매수 데이터 세척
                 garo = clean_num(row.get('가로', 0))
                 sero = clean_num(row.get('세로', 0))
                 dukki = clean_num(row.get('두께', 0))
                 maesu = clean_num(row.get('매수', 0))
                 
-                # 비율 데이터 추출 (이름이 '신재 비율'이든 '신재비율'이든 찾음)
+                # 2. 원재료 배합 비율 추출
                 s_ratio = clean_num(next((row[k] for k in row.index if '신재' in k and '비율' in k), 0))
                 j_ratio = clean_num(next((row[k] for k in row.index if '재생' in k and '비율' in k), 0))
                 a_ratio = clean_num(next((row[k] for k in row.index if '안료' in k and '비율' in k), 0))
                 
-                # 만약 비율이 1보다 크면(예: 2.7) 100으로 나누어 소수점(0.027)으로 변환
+                # 비율 정규화 (2.7 -> 0.027)
                 if s_ratio > 1: s_ratio /= 100
                 if j_ratio > 1: j_ratio /= 100
                 if a_ratio > 1: a_ratio /= 100
 
-                # 2. 원가 계산 로직
-                material_cost = (s_ratio * sinjae) + (j_ratio * jaesaeng) + (a_ratio * anlyo_price)
-                processing_fee = im_sinjae if s_ratio > 0 else im_jaesaeng
+                # 3. 순수 원재료비 공식 (임가공비 제외)
+                # 1kg당 원재료비 = (신재비율*신재단가) + (재생비율*재생단가) + (안료비율*안료단가)
+                material_price_per_kg = (s_ratio * sinjae) + (j_ratio * jaesaeng) + (a_ratio * anlyo_price)
                 
-                # 1장 원가 = (원료비 + 가공비) * (가로 * 세로 * 두께 * 비중)
-                one_cost = (material_cost + processing_fee) * (garo * sero * dukki * 0.00000184)
+                # 4. 제품 1장당 중량 및 최종 원가 계산
+                # 1장당 중량(kg) = 가로 * 세로 * 두께 * 비중(0.00000184)
+                weight_per_piece = garo * sero * dukki * 0.00000184
                 
-                total_cost = round(one_cost * maesu, 0)
+                # 최종 원가 = 1kg당 원재료비 * 1장당 중량 * 매수
+                total_cost = round(material_price_per_kg * weight_per_piece * maesu, 0)
+                
+                # 5. 수익 계산
                 nap_ga = clean_num(row.get('쿠팡 로켓 납품가(부가세 별도)', 0))
                 pan_ga = clean_num(row.get('쿠팡 판매가', 0))
                 profit = nap_ga - total_cost
                 
-                # None 방지를 위해 0이라도 반환
                 return pd.Series([total_cost, nap_ga, pan_ga, profit])
             except:
                 return pd.Series([0, 0, 0, 0])
-
         # 5. 결과 적용 및 필터링 출력
         result_cols = ['원가(1장*매수)', '쿠팡 로켓 납품가(부가세 별도)', '쿠팡 판매가', '수익']
         df_res = df_products.apply(calc_row, axis=1)
