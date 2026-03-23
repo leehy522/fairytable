@@ -84,7 +84,7 @@ def show_margin_calc():
                 return pd.Series([0, 0, 0, 0])
                 
         # 5. 결과 적용 및 필터링 출력
-        result_cols = ['원가(1장*매수)', '쿠팡 로켓 납품가(부가세 별도)', '쿠팡 판매가', '수익']
+        result_cols = ['최종 상품원가', '쿠팡 로켓 납품가(부가세 별도)', '쿠팡 판매가', '수익']
         df_res = df_products.apply(calc_row, axis=1)
         df_products[result_cols] = df_res
 
