@@ -33,31 +33,35 @@ def show_margin_calc():
         im_sinjae = float(target_cost['임가공(신재)'])
         im_jaesaeng = float(target_cost['임가공(재생)'])
 
-        # 4. 마진 계산 함수
+# 4. 마진 계산 함수
         def calc_row(row):
-            # 1장 원가 (비중 반영)
-            one_cost = (row['신재비율'] * sinjae + row['재생비율'] * jaesaeng + 
-                        (im_sinjae if row['신재비율'] > 0 else im_jaesaeng)) * \
-                       (row['가로'] * row['세로'] * row['두께'] * 0.00000184)
-            
-            total_cost = round(one_cost * row['매수'], 0)
-            nap_ga = row['쿠팡 로켓 납품가(부가세 별도)']
-            pan_ga = row['쿠팡 판매가']
-            profit = nap_ga - total_cost
-            
-            return pd.Series([total_cost, nap_ga, pan_ga, profit])
+            try:
+                # 시트에서 읽어온 값들을 숫자로 강제 변환 (오류 방지 핵심)
+                garo = pd.to_numeric(row['가로'], errors='coerce')
+                sero = pd.to_numeric(row['세로'], errors='coerce')
+                dukki = pd.to_numeric(row['두께'], errors='coerce')
+                maesu = pd.to_numeric(row['매수'], errors='coerce')
+                
+                # 비율 및 단가 (이미 float 변환됨)
+                s_ratio = pd.to_numeric(row['신재비율'], errors='coerce')
+                j_ratio = pd.to_numeric(row['재생비율'], errors='coerce')
+
+                # 1장 원가 계산 (숫자 데이터로만 연산 수행)
+                one_cost = (s_ratio * sinjae + j_ratio * jaesaeng + 
+                            (im_sinjae if s_ratio > 0 else im_jaesaeng)) * \
+                           (garo * sero * dukki * 0.00000184)
+                
+                total_cost = round(one_cost * maesu, 0)
+                nap_ga = pd.to_numeric(row['쿠팡 로켓 납품가(부가세 별도)'], errors='coerce')
+                pan_ga = pd.to_numeric(row['쿠팡 판매가'], errors='coerce')
+                profit = nap_ga - total_cost
+                
+                return pd.Series([total_cost, nap_ga, pan_ga, profit])
+            except Exception as e:
+                # 계산 중 오류 발생 시 0으로 반환하여 시스템 멈춤 방지
+                return pd.Series([0, 0, 0, 0])
 
         # 결과 계산 적용
         result_cols = ['원가(1장*매수)', '쿠팡 로켓 납품가(부가세 별도)', '쿠팡 판매가', '수익']
         df_products[result_cols] = df_products.apply(calc_row, axis=1)
-
-        # 5. 최종 출력 (요청하신 4개 항목 + 상품명)
-        display_df = df_products[['상품명'] + result_cols]
-        st.dataframe(display_df, use_container_width=True)
-
-    except Exception as e:
-        st.error(f"데이터를 처리하는 중 오류가 발생했습니다.")
-        st.info(f"상세 에러: {e}")
-
-if check_password():
     show_margin_calc()
