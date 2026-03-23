@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from urllib.parse import quote # 한글 주소 변환을 위해 추가
+from urllib.parse import quote
 from auth import check_password
 
 def show_margin_calc():
@@ -9,16 +9,20 @@ def show_margin_calc():
     try:
         sheet_id = "13ldXPSVT7CFyNZRj-6Rlv3aXMqOhflquUtcZom5cJzU"
         
-        # 한글 시트 이름을 URL용으로 변환
+        # 1. 한글 시트 이름을 URL용으로 변환
         sheet_name_1 = quote("상품목록")
         sheet_name_2 = quote("원가기준")
         
         url_products = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name_1}"
         url_costs = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name_2}"
         
-        # 이후 로직은 동일
+        # 2. 데이터 로드 및 전처리
         df_products = pd.read_csv(url_products)
         df_costs = pd.read_csv(url_costs)
+        
+        df_products.columns = df_products.columns.str.strip()
+        df_costs.columns = df_costs.columns.str.strip()
+        df_costs['월'] = df_costs['월'].astype(str).str.strip()
 
         # 3. 입력값 설정
         months = df_costs['월'].unique().tolist()
@@ -27,26 +31,23 @@ def show_margin_calc():
         # 해당 월의 원가 행 추출
         target_cost = df_costs[df_costs['월'] == selected_month].iloc[0]
         
-        # 원가 요소 할당
         sinjae = float(target_cost['신재'])
         jaesaeng = float(target_cost['재생'])
         im_sinjae = float(target_cost['임가공(신재)'])
         im_jaesaeng = float(target_cost['임가공(재생)'])
 
-# 4. 마진 계산 함수
+        # 4. 마진 계산 함수
         def calc_row(row):
             try:
-                # 시트에서 읽어온 값들을 숫자로 강제 변환 (오류 방지 핵심)
+                # 데이터 타입 강제 변환
                 garo = pd.to_numeric(row['가로'], errors='coerce')
                 sero = pd.to_numeric(row['세로'], errors='coerce')
                 dukki = pd.to_numeric(row['두께'], errors='coerce')
                 maesu = pd.to_numeric(row['매수'], errors='coerce')
-                
-                # 비율 및 단가 (이미 float 변환됨)
                 s_ratio = pd.to_numeric(row['신재비율'], errors='coerce')
                 j_ratio = pd.to_numeric(row['재생비율'], errors='coerce')
 
-                # 1장 원가 계산 (숫자 데이터로만 연산 수행)
+                # 1장 원가 및 수익 계산
                 one_cost = (s_ratio * sinjae + j_ratio * jaesaeng + 
                             (im_sinjae if s_ratio > 0 else im_jaesaeng)) * \
                            (garo * sero * dukki * 0.00000184)
@@ -57,11 +58,23 @@ def show_margin_calc():
                 profit = nap_ga - total_cost
                 
                 return pd.Series([total_cost, nap_ga, pan_ga, profit])
-            except Exception as e:
-                # 계산 중 오류 발생 시 0으로 반환하여 시스템 멈춤 방지
+            except:
                 return pd.Series([0, 0, 0, 0])
 
-        # 결과 계산 적용
+        # 5. 결과 적용 및 출력 (요청하신 4개 항목 위주)
         result_cols = ['원가(1장*매수)', '쿠팡 로켓 납품가(부가세 별도)', '쿠팡 판매가', '수익']
-        df_products[result_cols] = df_products.apply(calc_row, axis=1)
+        # 계산 결과를 새 컬럼으로 추가
+        df_res = df_products.apply(calc_row, axis=1)
+        df_products[result_cols] = df_res
+
+        # 최종 화면 출력
+        display_cols = ['상품명'] + result_cols
+        st.subheader(f"📊 {selected_month} 마진 분석 결과")
+        st.dataframe(df_products[display_cols], use_container_width=True)
+
+    except Exception as e:
+        st.error(f"데이터를 처리하는 중 오류가 발생했습니다: {e}")
+
+# 인증 확인 후 실행
+if check_password():
     show_margin_calc()
