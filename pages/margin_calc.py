@@ -37,35 +37,44 @@ def show_margin_calc():
         im_jaesaeng = float(target_cost['임가공(재생)'])
 
         # 4. 마진 계산 함수
-        def calc_row(row):
+def calc_row(row):
             try:
-                # 콤마(,)나 문자가 섞여 있어도 숫자로 강제 변환하는 함수
                 def clean_num(value):
                     if pd.isna(value): return 0
-                    # 문자열로 바꾼 뒤 콤마 제거하고 숫자만 남김
                     s = str(value).replace(',', '').strip()
                     return pd.to_numeric(s, errors='coerce')
-                    
-                # 데이터 타입 강제 변환
-                garo = pd.to_numeric(row['가로(cm)'], errors='coerce')
-                sero = pd.to_numeric(row['세로(cm)'], errors='coerce')
-                dukki = pd.to_numeric(row['두께(T)'], errors='coerce')
-                maesu = pd.to_numeric(row['매수'], errors='coerce')
-                s_ratio = pd.to_numeric(row['신재비율'], errors='coerce')
-                j_ratio = pd.to_numeric(row['안료비율'], errors='coerce')
 
-                # 1장 원가 및 수익 계산
-                one_cost = (s_ratio * sinjae + j_ratio * jaesaeng + 
-                            (im_sinjae if s_ratio > 0 else im_jaesaeng)) * \
-                           (garo * sero * dukki * 0.00000184)
+                # 1. 시트 데이터 세척
+                garo = clean_num(row['가로'])
+                sero = clean_num(row['세로'])
+                dukki = clean_num(row['두께'])
+                maesu = clean_num(row['매수'])
+                
+                # 비율 데이터 (0.1 = 10% 형식 가정)
+                s_ratio = clean_num(row['신재비율'])
+                j_ratio = clean_num(row['재생비율'])
+                a_ratio = clean_num(row['안료비율']) # 시트에 '안료비율' 컬럼 추가 필요
+
+                # 2. 안료 단가 가져오기 (이미지 기반)
+                anlyo_price = clean_num(target_cost['안료']) 
+
+                # 3. 수정된 원가 공식 (원료비 + 가공비)
+                # 원료비 = (신재비율*신재단가) + (재생비율*재생단가) + (안료비율*안료단가)
+                material_cost = (s_ratio * sinjae) + (j_ratio * jaesaeng) + (a_ratio * anlyo_price)
+                
+                # 가공비 선택 (신재 사용 여부에 따라 결정)
+                processing_fee = im_sinjae if s_ratio > 0 else im_jaesaeng
+
+                # 1장당 원가 = (원료비 + 가공비) * (부피 * 비중 0.00000184)
+                one_cost = (material_cost + processing_fee) * (garo * sero * dukki * 0.00000184)
                 
                 total_cost = round(one_cost * maesu, 0)
-                nap_ga = pd.to_numeric(row['쿠팡 로켓 납품가(부가세 별도)'], errors='coerce')
-                pan_ga = pd.to_numeric(row['쿠팡 판매가'], errors='coerce')
+                nap_ga = clean_num(row['쿠팡 로켓 납품가(부가세 별도)'])
+                pan_ga = clean_num(row['쿠팡 판매가'])
                 profit = nap_ga - total_cost
                 
                 return pd.Series([total_cost, nap_ga, pan_ga, profit])
-            except:
+            except Exception as e:
                 return pd.Series([0, 0, 0, 0])
 
         # 5. 결과 적용 및 출력 (요청하신 4개 항목 위주)
