@@ -56,7 +56,7 @@ def calculate_margin(products, costs, target_month):
     products['1장원가(원)'] = products['1장무게(kg)'] * (sinjae + pigment)
     
     # 마진율 계산 = (판매가 - 원가) / 판매가 * 100
-    products['마진율(%)'] = ((products['현재판매가'] - products['1장원가(원)']) / products['현재판매가']) * 100
+    products['마진율(%)'] = ((products['쿠팡 로켓 납품가(부가세 별도)'] - products['1장원가(원)']) / products['쿠팡 로켓 납품가(부가세 별도)']) * 100
     
     # 데이터 정리
     products['마진율(%)'] = products['마진율(%)'].round(2)
