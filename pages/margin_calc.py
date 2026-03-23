@@ -1,54 +1,68 @@
 import streamlit as st
 import pandas as pd
+from streamlit_gsheets import GSheetsConnection
+from auth import check_password
 
-def calculate_margin(products, costs, selected_month):
-    # 1. 컬럼명 공백 제거 (KeyError 방지 핵심 논리)
-    products.columns = products.columns.str.strip()
-    costs.columns = costs.columns.str.strip()
+# 페이지 설정
+st.set_page_config(page_title="마진 시뮬레이션", layout="wide")
+
+def show_margin_calc():
+    st.title("💰 월별 마진 시뮬레이션")
     
-    # 해당 월의 원가 데이터 추출
-    target_cost = costs[costs['월'] == selected_month]
-    if target_cost.empty:
-        st.error(f"{selected_month}의 원가 데이터가 없습니다.")
-        return pd.DataFrame()
+    try:
+        # 1. 데이터 불러오기 (변수 정의 단계)
+        conn = st.connection("gsheets", type=GSheetsConnection)
+        
+        # 시트 이름은 실제 귀하의 구글 시트 탭 이름과 일치해야 합니다.
+        df_products = conn.read(worksheet="상품목록") 
+        df_costs = conn.read(worksheet="원가기준")
+        
+        if df_products.empty or df_costs.empty:
+            st.error("시트에서 데이터를 불러오지 못했습니다.")
+            return
 
-    # 원가 요소 할당 (시트의 컬럼명과 정확히 일치해야 함)
-    sinjae = float(target_cost['신재'].values[0])
-    jaesaeng = float(target_cost['재생'].values[0])
-    im_sinjae = float(target_cost['임가공(신재)'].values[0])
-    im_jaesaeng = float(target_cost['임가공(재생)'].values[0])
+        # 2. 입력값 설정
+        months = df_costs['월'].unique().tolist()
+        selected_month = st.selectbox("분석할 월을 선택하세요", months)
 
-    # 2. 계산 로직
-    # 1장 원가 계산 (기존 로직 유지)
-    products['1장원가(원)'] = products.apply(
-        lambda row: (row['신재비율'] * sinjae + row['재생비율'] * jaesaeng + 
-                     (im_sinjae if row['신재비율'] > 0 else im_jaesaeng)) * (row['가로'] * row['세로'] * row['두께'] * 0.00000184), axis=1
-    )
+        # 3. 계산 및 필터링 로직
+        # 컬럼명 공백 제거
+        df_products.columns = df_products.columns.str.strip()
+        df_costs.columns = df_costs.columns.str.strip()
 
-    # 요청하신 4가지 항목 계산
-    # A. 원가 (1장 원가 * 매수)
-    products['원가(1장*매수)'] = (products['1장원가(원)'] * products['매수']).round(0)
-    
-    # B. 수익 (납품가 - 원가)
-    # 시트 컬럼명이 '쿠팡 로켓 납품가(부가세 별도)'임을 가정합니다.
-    products['수익'] = (products['쿠팡 로켓 납품가(부가세 별도)'] - products['원가(1장*매수)']).round(0)
+        target_cost = df_costs[df_costs['월'] == selected_month]
+        
+        # 원가 요소 할당
+        sinjae = float(target_cost['신재'].values[0])
+        jaesaeng = float(target_cost['재생'].values[0])
+        im_sinjae = float(target_cost['임가공(신재)'].values[0])
+        im_jaesaeng = float(target_cost['임가공(재생)'].values[0])
 
-    # 3. 최종 출력 항목 필터링
-    display_columns = [
-        '상품명', # 식별을 위해 추가
-        '원가(1장*매수)', 
-        '쿠팡 로켓 납품가(부가세 별도)', 
-        '쿠팡 판매가', 
-        '수익'
-    ]
-    
-    return products[display_columns]
+        # 1장 원가 및 요청 항목 계산
+        def calc_row(row):
+            one_cost = (row['신재비율'] * sinjae + row['재생비율'] * jaesaeng + 
+                        (im_sinjae if row['신재비율'] > 0 else im_jaesaeng)) * \
+                       (row['가로'] * row['세로'] * row['두께'] * 0.00000184)
+            
+            total_cost = round(one_cost * row['매수'], 0)
+            # 시트 컬럼명과 정확히 일치해야 함
+            nap_ga = row['쿠팡 로켓 납품가(부가세 별도)']
+            pan_ga = row['쿠팡 판매가']
+            profit = nap_ga - total_cost
+            
+            return pd.Series([total_cost, nap_ga, pan_ga, profit])
 
-# --- 메인 실행부 ---
-# 데이터프레임을 불러온 후 아래와 같이 호출하십시오.
-if not df_products.empty and not df_costs.empty:
-    final_df = calculate_margin(df_products.copy(), df_costs.copy(), selected_month)
-    
-    if not final_df.empty:
-        st.subheader(f"📊 {selected_month} 마진 분석 결과")
-        st.dataframe(final_df, use_container_width=True)
+        # 결과 데이터프레임 생성
+        result_cols = ['원가(1장*매수)', '쿠팡 로켓 납품가(부가세 별도)', '쿠팡 판매가', '수익']
+        df_products[result_cols] = df_products.apply(calc_row, axis=1)
+
+        # 4. 최종 출력 (요청하신 항목만)
+        display_df = df_products[['상품명'] + result_cols]
+        st.dataframe(display_df, use_container_width=True)
+
+    except Exception as e:
+        st.error(f"오류가 발생했습니다: {e}")
+
+# 인증 후 실행
+if check_password():
+    show_margin_calc()
