@@ -40,52 +40,45 @@ def show_margin_calc():
             try:
                 def clean_num(value):
                     if pd.isna(value): return 0
-                    # 콤마, %, 원 등 모든 문자를 지우고 숫자만 추출
-                    s = str(value).replace(',', '').replace('%', '').replace('원', '').strip()
+                    s = str(value).replace(',', '').replace('%', '').strip()
                     return pd.to_numeric(s, errors='coerce')
 
-                # 1. 시트의 실제 컬럼명에서 데이터 추출 (보내주신 목록 기준)
+                # 1. 데이터 추출
                 garo = clean_num(row.get('가로', 0))
                 sero = clean_num(row.get('세로', 0))
                 dukki = clean_num(row.get('두께', 0))
-                
-                # '원단길이' 또는 '원단 길이' 모두 대응
                 length = clean_num(next((row[k] for k in row.index if '원단' in k and '길이' in k), 0))
                 
-                # '롤당수량' 또는 '롤당 카운팅' 대응
-                pcs_per_roll = clean_num(next((row[k] for k in row.index if '롤당' in k and ('수량' in k or '카운팅' in k)), 1))
-                
-                # '박스비' 추출
+                # 롤 전체에서 나오는 총 '장'수 또는 '세트'수
+                total_pcs_in_roll = clean_num(next((row[k] for k in row.index if '롤당' in k and '수량' in k), 1))
                 box_cost = clean_num(row.get('박스비', 0))
 
-                # 2. 원재료 배합 및 단가 적용
+                # 2. 1kg당 원재료 단가 (선택된 월 기준)
                 s_ratio = clean_num(next((row[k] for k in row.index if '신재' in k and '비율' in k), 0))
                 j_ratio = clean_num(next((row[k] for k in row.index if '재생' in k and '비율' in k), 0))
                 a_ratio = clean_num(next((row[k] for k in row.index if '안료' in k and '비율' in k), 0))
                 
-                # 비율 정정 (2.7 -> 0.027)
                 if s_ratio > 1: s_ratio /= 100
                 if j_ratio > 1: j_ratio /= 100
                 if a_ratio > 1: a_ratio /= 100
 
-                # 3. 윤겸님 공식 적용
-                # ① 원단무게 = 가로 * 세로 * 두께 * 0.00000184 * 원단길이
-                fabric_weight = garo * sero * dukki * 0.00000184 * length
-                
-                # ② 원단가격 (단가는 상단 selectbox에서 선택된 월 기준)
                 material_unit_price = (sinjae * s_ratio) + (jaesaeng * j_ratio) + (anlyo_price * a_ratio)
-                fabric_price = fabric_weight * material_unit_price
+
+                # 3. [교정된 윤겸님 공식]
+                # ① 롤 전체 무게 (kg)
+                total_roll_weight = garo * sero * dukki * 0.00000184 * length
                 
-                # ③ 최종 상품원가 = (원단가격 / 롤당수량) + 박스비
-                divisor = pcs_per_roll if pcs_per_roll > 0 else 1
-                total_cost = round((fabric_price / divisor) + box_cost, 0)
+                # ② 롤 전체 가격 (원)
+                total_roll_price = total_roll_weight * material_unit_price
                 
-                # 4. 수익 계산 (납품가 컬럼명 줄바꿈 대응)
-                nap_ga_col = next((k for k in row.index if '납품가' in k), None)
-                pan_ga_col = next((k for k in row.index if '판매가' in k and '쿠팡' in k), None)
+                # ③ 최종 상품원가 (한 박스 기준)
+                # 롤 전체 가격을 롤당 수량으로 나누면 '한 세트(박스)'의 원단값이 나옵니다.
+                divisor = total_pcs_in_roll if total_pcs_in_roll > 0 else 1
+                total_cost = round((total_roll_price / divisor) + box_cost, 0)
                 
-                nap_ga = clean_num(row.get(nap_ga_col, 0))
-                pan_ga = clean_num(row.get(pan_ga_col, 0))
+                # 4. 수익 계산
+                nap_ga = clean_num(next((row[k] for k in row.index if '납품가' in k), 0))
+                pan_ga = clean_num(next((row[k] for k in row.index if '판매가' in k and '쿠팡' in k), 0))
                 profit = nap_ga - total_cost
                 
                 return pd.Series([total_cost, nap_ga, pan_ga, profit])
