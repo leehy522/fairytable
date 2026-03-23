@@ -4,56 +4,63 @@ from urllib.parse import quote
 from auth import check_password
 
 def show_margin_calc():
-    st.title("💰 월별 마진 시뮬레이션")
+    st.title("🎯 페어리테이블 전략적 마진 시뮬레이션")
+    st.markdown("---")
+
+    # 1. 목표 수익률 설정 슬라이더 (경영진 의사결정용)
+    target_margin_rate = st.sidebar.slider("🎯 목표 수익률 설정 (%)", 5, 50, 20) / 100
+    st.sidebar.info(f"현재 목표 수익률 {int(target_margin_rate*100)}%를 기준으로 추천 납품가를 계산합니다.")
 
     try:
         sheet_id = "13ldXPSVT7CFyNZRj-6Rlv3aXMqOhflquUtcZom5cJzU"
         
-        # 1. 한글 시트 이름을 URL용으로 변환
+        # 한글 시트 이름 변환
         sheet_name_1 = quote("상품목록")
         sheet_name_2 = quote("원가기준")
         
         url_products = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name_1}"
         url_costs = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name_2}"
         
-        # 2. 데이터 로드 및 전처리
+        # 데이터 로드
         df_products = pd.read_csv(url_products)
         df_costs = pd.read_csv(url_costs)
         
+        # 전처리
         df_products.columns = df_products.columns.str.strip()
         df_costs.columns = df_costs.columns.str.strip()
         df_costs['월'] = df_costs['월'].astype(str).str.strip()
 
-        # 3. 입력값 설정
+        # 분석 월 선택
         months = df_costs['월'].unique().tolist()
-        selected_month = st.selectbox("분석할 월을 선택하세요", months)
+        selected_month = st.selectbox("📅 분석할 원가 기준 월을 선택하세요", months)
 
-        # 해당 월의 원가 행 추출
-        target_cost = df_costs[df_costs['월'] == selected_month].iloc[0]
+        # 해당 월의 원재료 단가 추출
+        target_cost_row = df_costs[df_costs['월'] == selected_month].iloc[0]
         
-        sinjae = float(target_cost['신재'])
-        jaesaeng = float(target_cost['재생'])
-        anlyo_price = float(target_cost['안료'])
+        def clean_num(value):
+            if pd.isna(value): return 0
+            s = str(value).replace(',', '').replace('%', '').replace('원', '').strip()
+            return pd.to_numeric(s, errors='coerce')
 
-        # 4. 마진 계산 내부 함수 (들여쓰기 수정됨)
-        def calc_row(row):
+        # 원재료 기준 단가
+        sinjae = clean_num(target_cost_row.get('신재', 0))
+        jaesaeng = clean_num(target_cost_row.get('재생', 0))
+        anlyo_price = clean_num(target_cost_row.get('안료', 0))
+
+        # 2. 핵심 계산 함수 (윤겸님 공식 적용)
+        def calc_logic(row):
             try:
-                def clean_num(value):
-                    if pd.isna(value): return 0
-                    s = str(value).replace(',', '').replace('%', '').strip()
-                    return pd.to_numeric(s, errors='coerce')
-
-                # 1. 데이터 추출
+                # 시트 데이터 세척
                 garo = clean_num(row.get('가로', 0))
                 sero = clean_num(row.get('세로', 0))
                 dukki = clean_num(row.get('두께', 0))
-                length = clean_num(next((row[k] for k in row.index if '원단' in k and '길이' in k), 0))
                 
-                # 롤 전체에서 나오는 총 '장'수 또는 '세트'수
-                total_pcs_in_roll = clean_num(next((row[k] for k in row.index if '롤당' in k and '수량' in k), 1))
+                # 유연한 이름 찾기 로직
+                length = clean_num(next((row[k] for k in row.index if '원단' in k and '길이' in k), 0))
+                pcs_per_roll = clean_num(next((row[k] for k in row.index if '롤당' in k and ('수량' in k or '카운팅' in k)), 1))
                 box_cost = clean_num(row.get('박스비', 0))
 
-                # 2. 1kg당 원재료 단가 (선택된 월 기준)
+                # 비율 데이터 정규화
                 s_ratio = clean_num(next((row[k] for k in row.index if '신재' in k and '비율' in k), 0))
                 j_ratio = clean_num(next((row[k] for k in row.index if '재생' in k and '비율' in k), 0))
                 a_ratio = clean_num(next((row[k] for k in row.index if '안료' in k and '비율' in k), 0))
@@ -62,42 +69,47 @@ def show_margin_calc():
                 if j_ratio > 1: j_ratio /= 100
                 if a_ratio > 1: a_ratio /= 100
 
-                material_unit_price = (sinjae * s_ratio) + (jaesaeng * j_ratio) + (anlyo_price * a_ratio)
-
-                # 3. [교정된 윤겸님 공식]
+                # [공식 적용]
                 # ① 롤 전체 무게 (kg)
-                total_roll_weight = garo * sero * dukki * 0.00000184 * length
+                total_weight = garo * sero * dukki * 0.00000184 * length
+                # ② 1kg당 원재료 통합 단가
+                unit_price = (sinjae * s_ratio) + (jaesaeng * j_ratio) + (anlyo_price * a_ratio)
+                # ③ 롤 전체 가격 → 박스당 배분 → 박스비 추가 = 최종 상품원가
+                total_cost = round(((total_weight * unit_price) / (pcs_per_roll if pcs_per_roll > 0 else 1)) + box_cost, 0)
                 
-                # ② 롤 전체 가격 (원)
-                total_roll_price = total_roll_weight * material_unit_price
+                # ④ 추천 납품가 역산 (원가 / (1 - 목표수익률))
+                rec_nap_ga = round(total_cost / (1 - target_margin_rate), 0)
                 
-                # ③ 최종 상품원가 (한 박스 기준)
-                # 롤 전체 가격을 롤당 수량으로 나누면 '한 세트(박스)'의 원단값이 나옵니다.
-                divisor = total_pcs_in_roll if total_pcs_in_roll > 0 else 1
-                total_cost = round((total_roll_price / divisor) + box_cost, 0)
+                # ⑤ 현재 데이터와 비교
+                cur_nap_ga = clean_num(next((row[k] for k in row.index if '납품가' in k), 0))
+                adjustment = rec_nap_ga - cur_nap_ga
                 
-                # 4. 수익 계산
-                nap_ga = clean_num(next((row[k] for k in row.index if '납품가' in k), 0))
-                pan_ga = clean_num(next((row[k] for k in row.index if '판매가' in k and '쿠팡' in k), 0))
-                profit = nap_ga - total_cost
-                
-                return pd.Series([total_cost, nap_ga, pan_ga, profit])
+                return pd.Series([total_cost, cur_nap_ga, rec_nap_ga, adjustment])
             except:
                 return pd.Series([0, 0, 0, 0])
-                
-        # 5. 결과 적용 및 필터링 출력
-        result_cols = ['최종 상품원가', '쿠팡 로켓 납품가(부가세 별도)', '쿠팡 판매가', '수익']
-        df_res = df_products.apply(calc_row, axis=1)
-        df_products[result_cols] = df_res
 
-        # 최종 화면 출력
-        display_cols = ['상품명'] + result_cols
-        st.subheader(f"📊 {selected_month} 마진 분석 결과")
-        st.dataframe(df_products[display_cols], use_container_width=True)
+        # 3. 결과 적용 및 출력
+        res_cols = ['제조 원가', '현재 납품가', '추천 납품가', '조정 필요액']
+        df_res = df_products.apply(calc_logic, axis=1)
+        df_products[res_cols] = df_res
+
+        # 분석 결과 테이블
+        display_df = df_products[['상품명'] + res_cols]
+        
+        st.subheader(f"📊 {selected_month} 원가 기준 분석 (목표 수익률 {int(target_margin_rate*100)}%)")
+        
+        # 색상 강조: 조정 필요액이 플러스(+)면 빨간색 (인상 필요)
+        def color_adj(val):
+            color = 'red' if val > 0 else 'blue'
+            return f'color: {color}'
+
+        st.dataframe(display_df.style.applymap(color_adj, subset=['조정 필요액']), use_container_width=True)
+
+        st.success("💡 '조정 필요액'이 플러스(+)라면 현재 목표 수익률 달성을 위해 납품가 인상이 필요한 금액입니다.")
 
     except Exception as e:
-        st.error(f"데이터를 처리하는 중 오류가 발생했습니다: {e}")
+        st.error(f"데이터 로드 중 오류가 발생했습니다: {e}")
+        st.info("구글 시트의 컬럼명과 데이터 형식을 확인해 주세요.")
 
-# 인증 확인 후 실행
 if check_password():
     show_margin_calc()
