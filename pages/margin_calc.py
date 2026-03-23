@@ -39,6 +39,13 @@ def show_margin_calc():
         # 4. 마진 계산 함수
         def calc_row(row):
             try:
+                # 콤마(,)나 문자가 섞여 있어도 숫자로 강제 변환하는 함수
+                def clean_num(value):
+                    if pd.isna(value): return 0
+                    # 문자열로 바꾼 뒤 콤마 제거하고 숫자만 남김
+                    s = str(value).replace(',', '').strip()
+                    return pd.to_numeric(s, errors='coerce')
+                    
                 # 데이터 타입 강제 변환
                 garo = pd.to_numeric(row['가로(cm)'], errors='coerce')
                 sero = pd.to_numeric(row['세로(cm)'], errors='coerce')
