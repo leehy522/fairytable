@@ -43,10 +43,10 @@ def show_margin_calc():
         # 2. 핵심 계산 함수
         def calc_logic(row):
             try:
-                # [SKU ID + 상품명 결합]
-                sku_id = str(row.get('SKU ID', '')).split('.')[0] # 소수점 제거
-                p_name = f"[{sku_id}] {row.get('상품명', '')}"
+                # [SKU ID 별도 추출]
+                sku_val = str(row.get('SKU ID', '')).split('.')[0]
                 
+                # 제조 원가 계산 로직 (이전과 동일)
                 garo = clean_num(row.get('가로', 0))
                 sero = clean_num(row.get('세로', 0))
                 dukki = clean_num(row.get('두께', 0))
@@ -62,7 +62,6 @@ def show_margin_calc():
                 if j_ratio > 1: j_ratio /= 100
                 if a_ratio > 1: a_ratio /= 100
 
-                # 공식 적용
                 total_weight = garo * sero * dukki * 0.00000184 * length
                 unit_price = (sinjae * s_ratio) + (jaesaeng * j_ratio) + (anlyo_price * a_ratio)
                 total_cost = round(((total_weight * unit_price) / (pcs_per_roll if pcs_per_roll > 0 else 1)) + box_cost, 0)
@@ -71,24 +70,25 @@ def show_margin_calc():
                 cur_nap_ga = clean_num(next((row[k] for k in row.index if '납품가' in k), 0))
                 adjustment = rec_nap_ga - cur_nap_ga
                 
-                return pd.Series([p_name, total_cost, cur_nap_ga, rec_nap_ga, adjustment])
+                return pd.Series([sku_val, row.get('상품명', ''), total_cost, cur_nap_ga, rec_nap_ga, adjustment])
             except:
-                return pd.Series([row.get('상품명', ''), 0, 0, 0, 0])
+                return pd.Series(['', row.get('상품명', ''), 0, 0, 0, 0])
 
-        # 3. 결과 적용
-        res_cols = ['표시상품명', '제조 원가', '현재 납품가', '추천 납품가', '조정 필요액']
+        # 3. 결과 적용 (열 순서 조정: SKU ID가 맨 앞으로)
+        res_cols = ['SKU ID', '상품명', '제조 원가', '현재 납품가', '추천 납품가', '조정 필요액']
         df_res = df_products.apply(calc_logic, axis=1)
         df_products[res_cols] = df_res
 
         # 분석 결과 테이블
         display_df = df_products[res_cols].copy()
-        display_df.columns = ['상품명(SKU 포함)', '제조 원가', '현재 납품가', '추천 납품가', '조정 필요액']
         
         st.subheader(f"📊 {selected_month} 분석 결과 (목표 {int(target_margin_rate*100)}%)")
         
         def color_adj(val):
-            color = 'red' if val > 0 else 'blue'
-            return f'color: {color}'
+            if isinstance(val, (int, float)):
+                color = 'red' if val > 0 else 'blue'
+                return f'color: {color}'
+            return ''
 
         st.dataframe(display_df.style.applymap(color_adj, subset=['조정 필요액']), use_container_width=True)
 
@@ -101,7 +101,7 @@ def show_margin_calc():
         st.download_button(
             label="📥 분석 결과 엑셀로 다운로드",
             data=buffer.getvalue(),
-            file_name=f"페어리테이블_SKU별_분석_{selected_month}.xlsx",
+            file_name=f"페어리테이블_마진분석_{selected_month}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
