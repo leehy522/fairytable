@@ -35,37 +35,30 @@ def show_margin_calc():
         jaesaeng = float(target_cost['재생'])
         im_sinjae = float(target_cost['임가공(신재)'])
         im_jaesaeng = float(target_cost['임가공(재생)'])
+        anlyo_price = float(target_cost['안료'])
 
-        # 4. 마진 계산 함수
-def calc_row(row):
+        # 4. 마진 계산 내부 함수 (들여쓰기 수정됨)
+        def calc_row(row):
             try:
                 def clean_num(value):
                     if pd.isna(value): return 0
                     s = str(value).replace(',', '').strip()
                     return pd.to_numeric(s, errors='coerce')
 
-                # 1. 시트 데이터 세척
+                # 데이터 세척
                 garo = clean_num(row['가로'])
                 sero = clean_num(row['세로'])
                 dukki = clean_num(row['두께'])
                 maesu = clean_num(row['매수'])
-                
-                # 비율 데이터 (0.1 = 10% 형식 가정)
                 s_ratio = clean_num(row['신재비율'])
                 j_ratio = clean_num(row['재생비율'])
-                a_ratio = clean_num(row['안료비율']) # 시트에 '안료비율' 컬럼 추가 필요
+                a_ratio = clean_num(row['안료비율'])
 
-                # 2. 안료 단가 가져오기 (이미지 기반)
-                anlyo_price = clean_num(target_cost['안료']) 
-
-                # 3. 수정된 원가 공식 (원료비 + 가공비)
-                # 원료비 = (신재비율*신재단가) + (재생비율*재생단가) + (안료비율*안료단가)
+                # 원료비 + 가공비 공식 적용
                 material_cost = (s_ratio * sinjae) + (j_ratio * jaesaeng) + (a_ratio * anlyo_price)
-                
-                # 가공비 선택 (신재 사용 여부에 따라 결정)
                 processing_fee = im_sinjae if s_ratio > 0 else im_jaesaeng
 
-                # 1장당 원가 = (원료비 + 가공비) * (부피 * 비중 0.00000184)
+                # 1장 원가 = (원료비 + 가공비) * (부피 * 비중)
                 one_cost = (material_cost + processing_fee) * (garo * sero * dukki * 0.00000184)
                 
                 total_cost = round(one_cost * maesu, 0)
@@ -74,12 +67,11 @@ def calc_row(row):
                 profit = nap_ga - total_cost
                 
                 return pd.Series([total_cost, nap_ga, pan_ga, profit])
-            except Exception as e:
+            except:
                 return pd.Series([0, 0, 0, 0])
 
-        # 5. 결과 적용 및 출력 (요청하신 4개 항목 위주)
+        # 5. 결과 적용 및 필터링 출력
         result_cols = ['원가(1장*매수)', '쿠팡 로켓 납품가(부가세 별도)', '쿠팡 판매가', '수익']
-        # 계산 결과를 새 컬럼으로 추가
         df_res = df_products.apply(calc_row, axis=1)
         df_products[result_cols] = df_res
 
