@@ -60,7 +60,7 @@ def show_margin_calc():
 
                 # 원래의 황금 공식 복구
                 # ① 롤 전체 무게 (kg)
-                total_weight = garo * sero * dukki * 0.00000184 * length
+                total_weight = garo * dukki * 0.00000184 * length
                 # ② 1kg당 평균 재료 단가
                 unit_price = (sinjae * s_ratio) + (jaesaeng * j_ratio) + (anlyo_price * a_ratio)
                 # ③ (롤 전체 가격 / 박스 수) + 박스비
