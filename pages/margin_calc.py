@@ -39,42 +39,47 @@ def show_margin_calc():
             try:
                 sku_val = str(row.get('SKU ID', '')).split('.')[0]
                 
-                # 개별 목표 수익률 (시트에서 가져오기, 없으면 20%)
                 target_col = next((k for k in row.index if '목표' in k and ('률' in k or '율' in k)), None)
                 indiv_target = clean_num(row.get(target_col, 20))
                 if indiv_target > 1: indiv_target /= 100 
 
-                # 원가 계산 규격 데이터
                 garo = clean_num(row.get('가로', 0))
                 sero = clean_num(row.get('세로', 0))
                 dukki = clean_num(row.get('두께', 0))
-                length = clean_num(next((row[k] for k in row.index if '원단' in k and '길이' in k), 0))
                 
-                # [중요] pcs_per_roll은 롤 하나당 생산되는 '박스(세트) 수'여야 합니다.
-                pcs_per_roll = clean_num(next((row[k] for k in row.index if '롤당' in k and ('수량' in k or '카운팅' in k)), 1))
+                # [수정] 박스 1개당 들어가는 비닐 매수 (예: 100매)
+                box_pcs = clean_num(row.get('매수', 100)) 
                 box_cost = clean_num(row.get('박스비', 0))
 
-                s_ratio = clean_num(next((row[k] for k in row.index if '신재' in k and '비율' in k), 0)) / 100
-                j_ratio = clean_num(next((row[k] for k in row.index if '재생' in k and '비율' in k), 0)) / 100
-                a_ratio = clean_num(next((row[k] for k in row.index if '안료' in k and '비율' in k), 0)) / 100
+                # [수정] 비율 데이터가 100인지 1.0인지 방어하는 로직
+                s_val = clean_num(next((row[k] for k in row.index if '신재' in k and '비율' in k), 100))
+                j_val = clean_num(next((row[k] for k in row.index if '재생' in k and '비율' in k), 0))
+                a_val = clean_num(next((row[k] for k in row.index if '안료' in k and '비율' in k), 0))
+                
+                s_ratio = s_val / 100 if s_val > 1 else s_val
+                j_ratio = j_val / 100 if j_val > 1 else j_val
+                a_ratio = a_val / 100 if a_val > 1 else a_val
 
-                # 원래의 황금 공식 복구
-                # ① 롤 전체 무게 (kg)
-                total_weight = garo * dukki * 0.00000184 * length
+                # [핵심 수정] 1장 단위 정밀 계산법 도입
+                # ① 비닐 1장의 무게 (kg) = 가로 * 세로 * 두께 * 0.000184 (2겹 비중 상수)
+                single_weight = garo * sero * dukki * 0.000184
+                
                 # ② 1kg당 평균 재료 단가
                 unit_price = (sinjae * s_ratio) + (jaesaeng * j_ratio) + (anlyo_price * a_ratio)
-                # ③ (롤 전체 가격 / 박스 수) + 박스비
-                total_cost = round(((total_weight * unit_price) / (pcs_per_roll if pcs_per_roll > 0 else 1)) + box_cost, 0)
                 
-                # 추천가 역산 및 조정액 계산
+                # ③ 총 원가 = (1장 무게 * 1박스 매수 * kg당 단가) + 박스비
+                total_cost = round((single_weight * box_pcs * unit_price) + box_cost, 0)
+                
                 rec_nap_ga = round(total_cost / (1 - indiv_target), 0)
                 cur_nap_ga = clean_num(next((row[k] for k in row.index if '납품가' in k), 0))
                 adjustment = rec_nap_ga - cur_nap_ga
                 
                 return pd.Series([sku_val, row.get('상품명', ''), f"{int(indiv_target*100)}%", total_cost, cur_nap_ga, rec_nap_ga, adjustment])
-            except:
+            except Exception as e:
+                # 에러 발생 시 로그를 남겨 디버깅 가능하도록 수정
+                print(f"Error row {row.get('상품명')}: {e}")
                 return pd.Series(['', row.get('상품명', ''), '20%', 0, 0, 0, 0])
-
+                
         res_cols = ['SKU ID', '상품명', '설정 수익률', '제조 원가', '현재 납품가', '추천 납품가', '조정 필요액']
         df_res = df_products.apply(calc_logic, axis=1)
         df_products[res_cols] = df_res
