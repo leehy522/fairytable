@@ -90,7 +90,7 @@ def show_margin_calc():
 
         display_df = df_products[res_cols].copy()
         
-        st.subheader(f"📊 {selected_month} 상품별 개별 마진 분석")
+        st.subheader(f"📊 {selected_month} 상품별 개별 마진 분석(부가세 별도)")
         
         def color_adj(val):
             if isinstance(val, (int, float)):
