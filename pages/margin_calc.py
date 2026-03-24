@@ -73,6 +73,9 @@ def show_margin_calc():
                 rec_nap_ga = round(total_cost / (1 - indiv_target), 0)
                 cur_nap_ga = clean_num(next((row[k] for k in row.index if '납품가' in k), 0))
                 adjustment = rec_nap_ga - cur_nap_ga
+
+                # [표기용 포맷팅] 천단위 콤마와 '원' 추가
+                def fmt(v): return f"{int(v):,}원"
                 
                 return pd.Series([sku_val, row.get('상품명', ''), f"{int(indiv_target*100)}%", total_cost, cur_nap_ga, rec_nap_ga, adjustment])
             except Exception as e:
