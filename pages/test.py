@@ -83,20 +83,35 @@ def show_margin_calc():
                 if current_roll_profit < 15000: status = "🚨 적자위험"
                 elif current_roll_profit > 50000: status = "⚠️ 고마진"
 
-                # 포맷팅 함수
+  # [금액 계산]
+                total_box_cost = round(box_material_cost + box_cost, 0)
+                rec_nap_ga = round(total_box_cost / (1 - indiv_target), 0)
+                cur_nap_ga = clean_num(next((row[k] for k in row.index if '납품가' in k), 0))
+                
+                # [핵심] 조정액 계산 (추천가 - 현재가)
+                adjustment_val = rec_nap_ga - cur_nap_ga
+
+                # 포맷팅 함수 (기호 추가)
                 def fmt(v): return f"{int(round(v, 0)):,}원"
+                def fmt_adj(v):
+                    sign = "+" if v > 0 else "" # 마이너스는 자동으로 -가 붙음
+                    return f"{sign}{int(round(v, 0)):,}원"
 
                 return pd.Series([
-                    sku_val, row.get('상품명', ''), f"{roll_weight:.2f}kg",
-                    fmt(total_box_cost), fmt(cur_nap_ga), fmt(rec_nap_ga), fmt(adjustment),
-                    fmt(current_roll_profit), status
+                    sku_val, 
+                    row.get('상품명', ''), 
+                    fmt(total_box_cost), 
+                    fmt(cur_nap_ga), 
+                    fmt(rec_nap_ga), 
+                    fmt_adj(adjustment_val), # 얼마를 더하거나 빼야 하는지 표기
+                    fmt(current_roll_profit), 
+                    status
                 ])
             except:
-                return pd.Series(['', row.get('상품명', ''), "0kg", "0원", "0원", "0원", "0원", "0원", "오류"])
+                return pd.Series(['', row.get('상품명', ''), '0원', '0원', '0원', '0원', '0원', '오류'])
 
-        res_cols = ['SKU ID', '상품명', '롤무게', '제조원가(박스)', '현재납품가', '추천납품가', '조정필요액', '롤당수익', '방어선']
-        df_res = df_products.apply(calc_logic, axis=1)
-        df_products[res_cols] = df_res
+        # 컬럼명 명확화
+        res_cols = ['SKU ID', '상품명', '제조원가(박스)', '현재납품가', '추천납품가', '단가 조정액(+/-)', '롤당수익', '방어선']
 
         # UI 출력 및 스타일링
         st.subheader(f"📊 {selected_month} 통합 분석 리포트 (부가세 별도)")
