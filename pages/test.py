@@ -6,11 +6,10 @@ import io
 import re
 
 def show_margin_calc():
-    st.title("🛡️ 페어리테이블 통합 마진 분석 및 가격 방어 시스템")
+    st.title("🛡️ 페어리테이블 통합 마진 분석 시스템")
     st.markdown("---")
 
     try:
-        # 1. 데이터 로드
         sheet_id = "13ldXPSVT7CFyNZRj-6Rlv3aXMqOhflquUtcZom5cJzU"
         sheet_name_1 = quote("상품목록")
         sheet_name_2 = quote("원가기준")
@@ -34,47 +33,44 @@ def show_margin_calc():
         jaesaeng = clean_num(target_cost_row.get('재생', 0))
         anlyo = clean_num(target_cost_row.get('안료', 0))
 
+        # [표기용 이름 정의] - 여기서 정의한 이름과 return하는 데이터 순서가 완벽히 일치해야 합니다.
+        COL_SKU = 'SKU ID'
+        COL_NAME = '상품명'
+        COL_ROLL_W = '롤무게'
+        COL_BOX_COST = '제조원가(박스)'
+        COL_CUR_PRICE = '현재납품가'
+        COL_REC_PRICE = '추천납품가'
+        COL_ADJ = '단가 조정액(+/-)'
+        COL_PROFIT = '롤당수익'
+        COL_STATUS = '방어선'
+
         def calc_logic(row):
             try:
-                # [기본 데이터]
-                sku_val = str(row.get('SKU ID', '')).split('.')[0]
-                garo = clean_num(row.get('가로', 0))
-                sero = clean_num(row.get('세로', 0))
-                dukki = clean_num(row.get('두께', 0))
+                garo = clean_num(row.get('가로', 90))
+                dukki = clean_num(row.get('두께', 0.0125))
                 length = clean_num(next((row[k] for k in row.index if '원단' in k and '길이' in k), 1200))
                 box_pcs = clean_num(row.get('매수', 100))
                 box_cost = clean_num(row.get('박스비', 0))
                 cur_nap_ga = clean_num(next((row[k] for k in row.index if '납품가' in k), 0))
                 
-                # 목표 수익률 설정
                 target_col = next((k for k in row.index if '목표' in k and ('률' in k or '율' in k)), None)
-                indiv_target = clean_num(row.get(target_col, 20))
-                if indiv_target > 1: indiv_target /= 100
+                indiv_target = clean_num(row.get(target_col, 20)) / 100 if clean_num(row.get(target_col, 20)) > 1 else clean_num(row.get(target_col, 20))
 
-                # 배합비 계산
                 s_val = clean_num(next((row[k] for k in row.index if '신재' in k and '비율' in k), 100))
                 j_val = clean_num(next((row[k] for k in row.index if '재생' in k and '비율' in k), 0))
                 a_val = clean_num(next((row[k] for k in row.index if '안료' in k and '비율' in k), 0))
                 s_r, j_r, a_r = (v/100 if v > 1 else v for v in [s_val, j_val, a_val])
                 unit_price = (sinjae * s_r) + (jaesaeng * j_r) + (anlyo * a_r)
 
-                # --- [A. 원단 롤(Roll) 분석] ---
-                # 롤 무게 (폭*두께*길이*0.0184)
+                # 롤 및 박스 원가 계산
                 roll_weight = garo * dukki * length * 0.0184
-                roll_material_cost = roll_weight * unit_price
+                single_weight = garo * clean_num(row.get('세로', 0)) * dukki * 0.000184
+                total_box_cost = round((single_weight * box_pcs * unit_price) + box_cost, 0)
                 
-                # --- [B. 박스 단위 분석] ---
-                # 비닐 1장 무게 및 박스 제조원가
-                single_weight = garo * sero * dukki * 0.000184
-                box_material_cost = single_weight * box_pcs * unit_price
-                total_box_cost = round(box_material_cost + box_cost, 0)
-                
-                # 추천 납품가 산출
                 rec_nap_ga = round(total_box_cost / (1 - indiv_target), 0)
-                adjustment = rec_nap_ga - cur_nap_ga
+                adjustment_val = rec_nap_ga - cur_nap_ga
 
-                # --- [C. 가격 방어선 알고리즘] ---
-                # 롤당 최소 가공 수익 방어 (예: 25,000원)
+                # 롤당 수익 계산
                 total_pcs_in_roll = clean_num(next((row[k] for k in row.index if '롤당' in k and ('수량' in k or '카운팅' in k)), 1))
                 boxes_per_roll = total_pcs_in_roll / box_pcs if box_pcs > 0 else 1
                 current_roll_profit = (cur_nap_ga - total_box_cost) * boxes_per_roll
@@ -83,51 +79,46 @@ def show_margin_calc():
                 if current_roll_profit < 15000: status = "🚨 적자위험"
                 elif current_roll_profit > 50000: status = "⚠️ 고마진"
 
-  # [금액 계산]
-                total_box_cost = round(box_material_cost + box_cost, 0)
-                rec_nap_ga = round(total_box_cost / (1 - indiv_target), 0)
-                cur_nap_ga = clean_num(next((row[k] for k in row.index if '납품가' in k), 0))
-                
-                # [핵심] 조정액 계산 (추천가 - 현재가)
-                adjustment_val = rec_nap_ga - cur_nap_ga
-
-                # 포맷팅 함수 (기호 추가)
                 def fmt(v): return f"{int(round(v, 0)):,}원"
-                def fmt_adj(v):
-                    sign = "+" if v > 0 else "" # 마이너스는 자동으로 -가 붙음
-                    return f"{sign}{int(round(v, 0)):,}원"
+                def fmt_adj(v): return f"{'+' if v > 0 else ''}{int(round(v, 0)):,}원"
 
                 return pd.Series([
-                    sku_val, 
-                    row.get('상품명', ''), 
-                    fmt(total_box_cost), 
-                    fmt(cur_nap_ga), 
-                    fmt(rec_nap_ga), 
-                    fmt_adj(adjustment_val), # 얼마를 더하거나 빼야 하는지 표기
-                    fmt(current_roll_profit), 
+                    str(row.get('SKU ID', '')).split('.')[0],
+                    row.get('상품명', ''),
+                    f"{roll_weight:.2f}kg",
+                    fmt(total_box_cost),
+                    fmt(cur_nap_ga),
+                    fmt(rec_nap_ga),
+                    fmt_adj(adjustment_val),
+                    fmt(current_roll_profit),
                     status
-                ])
+                ], index=[COL_SKU, COL_NAME, COL_ROLL_W, COL_BOX_COST, COL_CUR_PRICE, COL_REC_PRICE, COL_ADJ, COL_PROFIT, COL_STATUS])
             except:
-                return pd.Series(['', row.get('상품명', ''), '0원', '0원', '0원', '0원', '0원', '오류'])
+                return pd.Series(['', row.get('상품명', ''), '0kg', '0원', '0원', '0원', '0원', '0원', '오류'], 
+                                 index=[COL_SKU, COL_NAME, COL_ROLL_W, COL_BOX_COST, COL_CUR_PRICE, COL_REC_PRICE, COL_ADJ, COL_PROFIT, COL_STATUS])
 
-        # 컬럼명 명확화
-        res_cols = ['SKU ID', '상품명', '제조원가(박스)', '현재납품가', '추천납품가', '단가 조정액(+/-)', '롤당수익', '방어선']
-
-        # UI 출력 및 스타일링
-        st.subheader(f"📊 {selected_month} 통합 분석 리포트 (부가세 별도)")
+        # 데이터 적용
+        df_res = df_products.apply(calc_logic, axis=1)
         
-        def style_logic(val):
+        # [해결포인트] df_products에 새로운 열들을 안전하게 합칩니다.
+        display_cols = [COL_SKU, COL_NAME, COL_ROLL_W, COL_BOX_COST, COL_CUR_PRICE, COL_REC_PRICE, COL_ADJ, COL_PROFIT, COL_STATUS]
+        df_final = pd.concat([df_products, df_res], axis=1)
+        
+        st.subheader(f"📊 {selected_month} 통합 분석 리포트")
+        
+        # 스타일링 및 출력
+        def style_status(val):
             if '🚨' in str(val): return 'color: red; font-weight: bold'
             if '⚠️' in str(val): return 'color: orange'
             return ''
 
-        st.dataframe(df_products[res_cols].style.applymap(style_logic, subset=['방어선']), use_container_width=True)
+        st.dataframe(df_res[display_cols].style.applymap(style_status, subset=[COL_STATUS]), use_container_width=True)
 
         # 엑셀 다운로드
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            df_products[res_cols].to_excel(writer, index=False, sheet_name='통합분석')
-        st.download_button("📥 분석 결과 엑셀 다운로드", buffer.getvalue(), f"페어리테이블_통합분석_{selected_month}.xlsx")
+            df_res[display_cols].to_excel(writer, index=False, sheet_name='통합분석')
+        st.download_button("📥 엑셀 다운로드", buffer.getvalue(), f"페어리테이블_분석_{selected_month}.xlsx")
 
     except Exception as e:
         st.error(f"실행 오류: {e}")
