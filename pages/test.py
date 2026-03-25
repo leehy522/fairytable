@@ -37,9 +37,9 @@ def show_margin_calc():
         COL_SKU = 'SKU ID'
         COL_NAME = '상품명'
         COL_ROLL_W = '롤무게'
-        COL_BOX_COST = '제조원가(박스)'
-        COL_CUR_PRICE = '현재납품가'
-        COL_REC_PRICE = '추천납품가'
+        COL_BOX_COST = '제조원가(원)'
+        COL_CUR_PRICE = '현재납품가(원)'
+        COL_REC_PRICE = '추천납품가(원)'
         COL_ADJ = '단가 조정액(+/-)'
         COL_PROFIT = '롤당수익'
         COL_STATUS = '방어선'
@@ -79,8 +79,8 @@ def show_margin_calc():
                 if current_roll_profit < 15000: status = "🚨 적자위험"
                 elif current_roll_profit > 50000: status = "⚠️ 고마진"
 
-                def fmt(v): return f"{int(round(v, 0)):,}원"
-                def fmt_adj(v): return f"{'+' if v > 0 else ''}{int(round(v, 0)):,}원"
+                def fmt(v): return f"{int(round(v, 0)):,}"
+                def fmt_adj(v): return f"{'+' if v > 0 else ''}{int(round(v, 0)):,}"
 
                 return pd.Series([
                     str(row.get('SKU ID', '')).split('.')[0],
@@ -94,7 +94,7 @@ def show_margin_calc():
                     status
                 ], index=[COL_SKU, COL_NAME, COL_ROLL_W, COL_BOX_COST, COL_CUR_PRICE, COL_REC_PRICE, COL_ADJ, COL_PROFIT, COL_STATUS])
             except:
-                return pd.Series(['', row.get('상품명', ''), '0kg', '0원', '0원', '0원', '0원', '0원', '오류'], 
+                return pd.Series(['', row.get('상품명', ''), '0kg', '0', '0', '0', '0', '0', '오류'], 
                                  index=[COL_SKU, COL_NAME, COL_ROLL_W, COL_BOX_COST, COL_CUR_PRICE, COL_REC_PRICE, COL_ADJ, COL_PROFIT, COL_STATUS])
 
         # 데이터 적용
