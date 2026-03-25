@@ -41,36 +41,44 @@ def show_margin_calc():
         COL_CUR_PRICE = '현재납품가(원)'
         COL_REC_PRICE = '추천납품가(원)'
         COL_ADJ = '단가 조정액(+/-)'
+        COL_COUPANG = '쿠팡판매가(42%)' # 새로 추가된 열
         COL_PROFIT = '롤당수익'
         COL_STATUS = '방어선'
 
         def calc_logic(row):
             try:
+                # [기본 계산 데이터]
                 garo = clean_num(row.get('가로', 90))
+                sero = clean_num(row.get('세로', 100))
                 dukki = clean_num(row.get('두께', 0.0125))
                 length = clean_num(next((row[k] for k in row.index if '원단' in k and '길이' in k), 1200))
                 box_pcs = clean_num(row.get('매수', 100))
                 box_cost = clean_num(row.get('박스비', 0))
                 cur_nap_ga = clean_num(next((row[k] for k in row.index if '납품가' in k), 0))
                 
+                # [목표 수익률]
                 target_col = next((k for k in row.index if '목표' in k and ('률' in k or '율' in k)), None)
-                indiv_target = clean_num(row.get(target_col, 20)) / 100 if clean_num(row.get(target_col, 20)) > 1 else clean_num(row.get(target_col, 20))
+                target_val = clean_num(row.get(target_col, 20))
+                indiv_target = target_val / 100 if target_val > 1 else target_val
 
+                # [단가 계산]
                 s_val = clean_num(next((row[k] for k in row.index if '신재' in k and '비율' in k), 100))
                 j_val = clean_num(next((row[k] for k in row.index if '재생' in k and '비율' in k), 0))
                 a_val = clean_num(next((row[k] for k in row.index if '안료' in k and '비율' in k), 0))
                 s_r, j_r, a_r = (v/100 if v > 1 else v for v in [s_val, j_val, a_val])
                 unit_price = (sinjae * s_r) + (jaesaeng * j_r) + (anlyo * a_r)
 
-                # 롤 및 박스 원가 계산
-                roll_weight = garo * dukki * length * 0.0184
-                single_weight = garo * clean_num(row.get('세로', 0)) * dukki * 0.000184
+                # [박스 원가 및 추천가]
+                single_weight = garo * sero * dukki * 0.000184
                 total_box_cost = round((single_weight * box_pcs * unit_price) + box_cost, 0)
-                
                 rec_nap_ga = round(total_box_cost / (1 - indiv_target), 0)
                 adjustment_val = rec_nap_ga - cur_nap_ga
 
-                # 롤당 수익 계산
+                # [핵심] 쿠팡 판매가 계산 (수익률 42% 기준)
+                # 판매가 = 납품가 / (1 - 0.42)
+                coupang_selling_price = round(cur_nap_ga / 0.58, 0)
+
+                # [롤당 수익 및 방어선]
                 total_pcs_in_roll = clean_num(next((row[k] for k in row.index if '롤당' in k and ('수량' in k or '카운팅' in k)), 1))
                 boxes_per_roll = total_pcs_in_roll / box_pcs if box_pcs > 0 else 1
                 current_roll_profit = (cur_nap_ga - total_box_cost) * boxes_per_roll
@@ -79,34 +87,29 @@ def show_margin_calc():
                 if current_roll_profit < 15000: status = "🚨 적자위험"
                 elif current_roll_profit > 50000: status = "⚠️ 고마진"
 
-                def fmt(v): return f"{int(round(v, 0)):,}"
-                def fmt_adj(v): return f"{'+' if v > 0 else ''}{int(round(v, 0)):,}"
+                def fmt(v): return f"{int(round(v, 0)):,}원"
+                def fmt_adj(v): return f"{'+' if v > 0 else ''}{int(round(v, 0)):,}원"
 
                 return pd.Series([
                     str(row.get('SKU ID', '')).split('.')[0],
                     row.get('상품명', ''),
-                    f"{roll_weight:.2f}kg",
                     fmt(total_box_cost),
                     fmt(cur_nap_ga),
                     fmt(rec_nap_ga),
                     fmt_adj(adjustment_val),
+                    fmt(coupang_selling_price), # 쿠팡 판매가 추가
                     fmt(current_roll_profit),
                     status
-                ], index=[COL_SKU, COL_NAME, COL_ROLL_W, COL_BOX_COST, COL_CUR_PRICE, COL_REC_PRICE, COL_ADJ, COL_PROFIT, COL_STATUS])
+                ], index=[COL_SKU, COL_NAME, COL_BOX_COST, COL_CUR_PRICE, COL_REC_PRICE, COL_ADJ, COL_COUPANG, COL_PROFIT, COL_STATUS])
             except:
-                return pd.Series(['', row.get('상품명', ''), '0kg', '0', '0', '0', '0', '0', '오류'], 
-                                 index=[COL_SKU, COL_NAME, COL_ROLL_W, COL_BOX_COST, COL_CUR_PRICE, COL_REC_PRICE, COL_ADJ, COL_PROFIT, COL_STATUS])
+                return pd.Series(['', row.get('상품명', ''), '0원', '0원', '0원', '0원', '0원', '0원', '오류'], 
+                                 index=[COL_SKU, COL_NAME, COL_BOX_COST, COL_CUR_PRICE, COL_REC_PRICE, COL_ADJ, COL_COUPANG, COL_PROFIT, COL_STATUS])
 
-        # 데이터 적용
         df_res = df_products.apply(calc_logic, axis=1)
+        display_cols = [COL_SKU, COL_NAME, COL_BOX_COST, COL_CUR_PRICE, COL_REC_PRICE, COL_ADJ, COL_COUPANG, COL_PROFIT, COL_STATUS]
         
-        # [해결포인트] df_products에 새로운 열들을 안전하게 합칩니다.
-        display_cols = [COL_SKU, COL_NAME, COL_ROLL_W, COL_BOX_COST, COL_CUR_PRICE, COL_REC_PRICE, COL_ADJ, COL_PROFIT, COL_STATUS]
-        df_final = pd.concat([df_products, df_res], axis=1)
+        st.subheader(f"📊 {selected_month} 쿠팡 납품 및 판매가 분석 리포트")
         
-        st.subheader(f"📊 {selected_month} 통합 분석 리포트")
-        
-        # 스타일링 및 출력
         def style_status(val):
             if '🚨' in str(val): return 'color: red; font-weight: bold'
             if '⚠️' in str(val): return 'color: orange'
@@ -114,11 +117,10 @@ def show_margin_calc():
 
         st.dataframe(df_res[display_cols].style.applymap(style_status, subset=[COL_STATUS]), use_container_width=True)
 
-        # 엑셀 다운로드
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             df_res[display_cols].to_excel(writer, index=False, sheet_name='통합분석')
-        st.download_button("📥 엑셀 다운로드", buffer.getvalue(), f"페어리테이블_분석_{selected_month}.xlsx")
+        st.download_button("📥 엑셀 다운로드", buffer.getvalue(), f"페어리테이블_쿠팡분석_{selected_month}.xlsx")
 
     except Exception as e:
         st.error(f"실행 오류: {e}")
