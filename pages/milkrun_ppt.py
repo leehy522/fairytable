@@ -173,22 +173,22 @@ def _extract_pdf_data(pdf_files) -> list[dict]:
     return all_extracted
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#  PPTX 생성
+#  PPTX 생성 (핵심 로직 수정됨)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def _build_pptx(tpl_file, edited_df: pd.DataFrame) -> bytes:
     """편집된 DataFrame으로 최종 PPTX를 생성하고 bytes를 반환합니다."""
     prs = Presentation(tpl_file)
+    
+    # [수정 1] 원본 템플릿(0번) 외의 쓰레기 슬라이드가 있다면 삭제
     while len(prs.slides) > 1:
         rId = prs.slides._sle[1].rId
         prs.part.drop_rel(rId)
         del prs.slides._sle[1]
 
-    is_first = True
-    for center, group in edited_df.groupby("센터"):
-        po_list = sorted([str(p) for p in group["발주번호"].unique()])
-        all_pos = ", ".join(po_list)
-
+    # [수정 2] '센터'가 아닌 '발주번호' 기준으로 그룹핑하여 섞임 방지
+    for po_num, group in edited_df.groupby("발주번호"):
+        center = group["센터"].iloc[0]
         mixed_items = []
         total_qty_sum = 0
 
@@ -198,7 +198,7 @@ def _build_pptx(tpl_file, edited_df: pd.DataFrame) -> bytes:
                 continue
             mixed_items.append({
                 "sku": row["SKU"],
-                "name": f"[{row['발주번호']}] {row['상품명']}",
+                "name": f"[{po_num}] {row['상품명']}",
                 "qty": q,
             })
             total_qty_sum += q
@@ -206,14 +206,16 @@ def _build_pptx(tpl_file, edited_df: pd.DataFrame) -> bytes:
         if not mixed_items:
             continue
 
+        # 팔레트 계산 로직: 총 수량이 cap을 넘어가면 N-M으로 분할
         cap = int(group["적재량"].iloc[0])
-        tot_plt = (
-            1
-            if total_qty_sum < 300
-            else (total_qty_sum // cap) + (1 if total_qty_sum % cap > 0 else 0)
-        )
+        if total_qty_sum <= cap:
+            tot_plt = 1
+        else:
+            tot_plt = (total_qty_sum // cap) + (1 if total_qty_sum % cap > 0 else 0)
+
         y, m, d = group["date"].iloc[0].split("-")
 
+        # 각 팔레트 번호(1-1, 2-1 등)별로 2장씩(제출용, 보관용) 템플릿 복제 후 작성
         for i in range(1, tot_plt + 1):
             p_info = {
                 "no": f"{tot_plt}-{i}",
@@ -221,23 +223,27 @@ def _build_pptx(tpl_file, edited_df: pd.DataFrame) -> bytes:
                 "cap": cap,
                 "items_list": mixed_items,
             }
-            for _ in range(2):    # 슬라이드 2장씩 (앞/뒤)
-                if is_first:
-                    slide = prs.slides[0]
-                    is_first = False
-                else:
-                    slide = duplicate_slide(prs, 0)
-                fill_slide_data(slide, p_info, all_pos, center, y, m, d)
+            
+            for _ in range(2): 
+                # [수정 3] 항상 깨끗한 원본(0번) 슬라이드를 복제하여 맨 뒤에 추가
+                new_slide = duplicate_slide(prs, 0)
+                fill_slide_data(new_slide, p_info, po_num, center, y, m, d)
+
+    # [수정 4] 작업이 모두 끝난 후, 기준이 되었던 빈 템플릿(0번)은 삭제 처리
+    if len(prs.slides) > 1:
+        rId = prs.slides._sle[0].rId
+        prs.part.drop_rel(rId)
+        del prs.slides._sle[0]
 
     ppt_out = io.BytesIO()
     prs.save(ppt_out)
     return ppt_out.getvalue()
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#  메인 UI 실행부 (render 래퍼 제거)
+#  메인 UI 실행부
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-st.title("🚚 밀크런 통합 편집 시스템 (v4.98 로직 이식)")
+st.title("🚚 밀크런 통합 편집 시스템 (N-M 정밀 분할 적용)")
 
 tpl_file = st.file_uploader("1. 양식 PPT 업로드", type=["pptx"])
 pdf_files = st.file_uploader(
@@ -261,7 +267,7 @@ if tpl_file and pdf_files:
         )
 
         # ── PPT 생성 ──────────────────────────────────────
-        if st.button("🚀 지능형 합짐 및 PPT 생성"):
+        if st.button("🚀 지능형 병합 및 PPT 생성"):
             try:
                 ppt_bytes = _build_pptx(tpl_file, edited_df)
                 st.download_button(
@@ -269,6 +275,9 @@ if tpl_file and pdf_files:
                     ppt_bytes,
                     "밀크런_수량수정_결과.pptx",
                 )
-                st.success("✅ PPT 생성 완료!")
+                st.success("✅ PPT 생성 완료! (14장 정상 출력)")
             except Exception as e:
                 st.error(f"PPT 생성 중 에러: {e}")
+
+if check_password():
+    show_margin_calc()
