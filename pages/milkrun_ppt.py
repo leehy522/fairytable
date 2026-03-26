@@ -188,14 +188,18 @@ def show_milkrun_ppt():
     if "extracted_data" not in st.session_state:
         st.session_state.extracted_data = []
 
-    # 1. 고정 양식 파일 경로 설정 (이 파일이 무조건 같은 폴더에 있어야 합니다)
-    TEMPLATE_PATH = "밀크런_양식.pptx"
+    # [수정 포인트] 현재 파일의 위치를 기준으로 양식 파일의 절대 경로를 계산합니다.
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    TEMPLATE_PATH = os.path.join(current_dir, "밀크런_양식.pptx")
+
+    # 경로 디버깅을 위해 화면에 출력 (확인 후 삭제 가능)
+    # st.write(f"현재 시스템이 찾는 경로: {TEMPLATE_PATH}")
 
     if not os.path.exists(TEMPLATE_PATH):
-        st.error(f"⚠️ 시스템 오류: 같은 폴더 안에 '{TEMPLATE_PATH}' 파일이 없습니다. 파일을 먼저 넣어주세요.")
+        st.error(f"⚠️ 파일을 찾을 수 없습니다. 경로를 확인해주세요: {TEMPLATE_PATH}")
         return
 
-    st.info(f"✅ 기준 양식({TEMPLATE_PATH})이 정상적으로 로드되었습니다.")
+    st.info(f"✅ 기준 양식(밀크런_양식.pptx)이 정상적으로 로드되었습니다.")
 
     # 2. 발주서만 업로드하도록 UI 단순화
     pdf_files = st.file_uploader(
