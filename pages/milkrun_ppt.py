@@ -17,20 +17,17 @@ st.set_page_config(page_title="밀크런 PPT 자동변환", page_icon="🚚", la
 #  헬퍼 함수
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-def get_pallet_capacity(sku: str) -> int:
-    sku = str(sku)
-    if sku in ["32058611", "15651222"]: return 300
-    if sku in ["29558294", "32711887"]: return 192
-    if sku == "32083343": return 400
-    if sku == "32366753": return 560
-    return 300
-
 def duplicate_slide(prs: Presentation, index: int):
+    """지정한 인덱스의 슬라이드를 복제하여 맨 뒤에 추가합니다."""
     template = prs.slides[index]
     blank_layout = prs.slide_layouts[6] if len(prs.slide_layouts) > 6 else prs.slide_layouts[0]
     new_slide = prs.slides.add_slide(blank_layout)
+    
+    # 기존 레이아웃 요소 제거
     for shp in list(new_slide.shapes):
         new_slide.shapes._spTree.remove(shp.element)
+        
+    # 템플릿의 모든 요소를 복사
     for shape in template.shapes:
         new_el = copy.deepcopy(shape.element)
         new_slide.shapes._spTree.insert_element_before(new_el, "p:extLst")
@@ -77,7 +74,7 @@ def fill_slide_data(slide, p: dict, po_num: str, fc_name: str, year: str, month:
                 pass
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#  PDF 데이터 추출
+#  PDF 데이터 추출 및 PPT 생성 로직
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def _extract_pdf_data(pdf_files) -> list[dict]:
@@ -85,7 +82,7 @@ def _extract_pdf_data(pdf_files) -> list[dict]:
     for pdf_file in pdf_files:
         reader = pypdf.PdfReader(pdf_file)
         for i, page in enumerate(reader.pages):
-            if i % 2 != 0: continue # 홀수 페이지만 분석
+            if i % 2 != 0: continue 
             
             text = page.extract_text() + "\n"
             po_match = re.search(r"(?:발주번호|PO|no|Info)\s*[:\s\n]*(\d{9})", text, re.I) or re.search(r"(\d{9})", text)
@@ -122,18 +119,16 @@ def _extract_pdf_data(pdf_files) -> list[dict]:
                     processed_in_page.add(sku)
     return all_extracted
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#  PPTX 생성 (사용자 규칙 완벽 적용)
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
 def _build_pptx(tpl_file_path: str, edited_df: pd.DataFrame) -> bytes:
     prs = Presentation(tpl_file_path)
     
-    while len(prs.slides) > 1:
-        rId = prs.slides._sle[1].rId
-        prs.part.drop_rel(rId)
-        del prs.slides._sle[1]
+    # [수정] 안전한 슬라이드 삭제 방식 (첫 번째 슬라이드만 남기고 모두 삭제)
+    slide_ids = [s.slide_id for s in prs.slides]
+    for s_id in slide_ids[1:]:
+        slide_layout_index = prs.slides._sldIdLst.index(next(s for s in prs.slides._sldIdLst if s.id == s_id))
+        del prs.slides._sldIdLst[slide_layout_index]
 
+    # 발주번호별 그룹화
     for po_num, group in edited_df.groupby("발주번호"):
         center = group["센터"].iloc[0]
         mixed_items = []
@@ -151,8 +146,7 @@ def _build_pptx(tpl_file_path: str, edited_df: pd.DataFrame) -> bytes:
 
         if not mixed_items: continue
 
-        # [핵심 로직] 발주서 내의 '품목(SKU) 개수'를 기준으로 팔레트를 나눕니다.
-        # 품목이 1개면 1-1 (1팔레트). XRC10처럼 품목이 2개면 2-1, 2-2 (2팔레트).
+        # [윤겸님 규칙] 품목 개수에 따라 팔레트 시퀀스 결정
         tot_plt = len(mixed_items) 
         y, m, d = group["date"].iloc[0].split("-")
 
@@ -163,16 +157,12 @@ def _build_pptx(tpl_file_path: str, edited_df: pd.DataFrame) -> bytes:
                 "items_list": mixed_items,
             }
             
-            # 각 팔레트(시퀀스)마다 정확히 2장씩 복제
             for _ in range(2): 
                 new_slide = duplicate_slide(prs, 0)
                 fill_slide_data(new_slide, p_info, po_num, center, y, m, d)
 
-    # 템플릿 원본 삭제
-    if len(prs.slides) > 1:
-        rId = prs.slides._sle[0].rId
-        prs.part.drop_rel(rId)
-        del prs.slides._sle[0]
+    # [수정] 작업 종료 후 원본 템플릿(첫 번째 장) 삭제
+    del prs.slides._sldIdLst[0]
 
     ppt_out = io.BytesIO()
     prs.save(ppt_out)
@@ -183,54 +173,37 @@ def _build_pptx(tpl_file_path: str, edited_df: pd.DataFrame) -> bytes:
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def show_milkrun_ppt():
-    st.title("🚚 밀크런 통합 편집 시스템 (자동 템플릿 적용)")
+    st.title("🚚 밀크런 통합 편집 시스템")
 
     if "extracted_data" not in st.session_state:
         st.session_state.extracted_data = []
 
-    # [수정 포인트] 현재 파일의 위치를 기준으로 양식 파일의 절대 경로를 계산합니다.
+    # 현재 파일 위치 기준 절대 경로 설정
     current_dir = os.path.dirname(os.path.abspath(__file__))
     TEMPLATE_PATH = os.path.join(current_dir, "밀크런_양식.pptx")
 
-    # 경로 디버깅을 위해 화면에 출력 (확인 후 삭제 가능)
-    # st.write(f"현재 시스템이 찾는 경로: {TEMPLATE_PATH}")
-
     if not os.path.exists(TEMPLATE_PATH):
-        st.error(f"⚠️ 파일을 찾을 수 없습니다. 경로를 확인해주세요: {TEMPLATE_PATH}")
+        st.error(f"⚠️ 파일을 찾을 수 없습니다: {TEMPLATE_PATH}")
         return
 
-    st.info(f"✅ 기준 양식(밀크런_양식.pptx)이 정상적으로 로드되었습니다.")
+    st.success(f"✅ 양식 로드 완료")
 
-    # 2. 발주서만 업로드하도록 UI 단순화
-    pdf_files = st.file_uploader(
-        "📄 발주서 PDF 업로드 (다중 선택)", type=["pdf"], accept_multiple_files=True
-    )
+    pdf_files = st.file_uploader("📄 발주서 PDF 업로드", type=["pdf"], accept_multiple_files=True)
 
     if pdf_files:
-        if st.button("🔍 발주서 데이터 정밀 분석"):
-            with st.spinner("PDF 분석 중..."):
-                st.session_state.extracted_data = _extract_pdf_data(pdf_files)
+        if st.button("🔍 데이터 분석"):
+            st.session_state.extracted_data = _extract_pdf_data(pdf_files)
             st.rerun()
 
         if st.session_state.extracted_data:
-            st.subheader("📊 발주 데이터 통합 편집")
-            edited_df = st.data_editor(
-                pd.DataFrame(st.session_state.extracted_data),
-                num_rows="dynamic",
-                use_container_width=True,
-            )
+            edited_df = st.data_editor(pd.DataFrame(st.session_state.extracted_data), use_container_width=True)
 
-            if st.button("🚀 지능형 병합 및 PPT 생성"):
+            if st.button("🚀 PPT 생성"):
                 try:
                     ppt_bytes = _build_pptx(TEMPLATE_PATH, edited_df)
-                    st.download_button(
-                        "📥 최종 PPT 다운로드",
-                        ppt_bytes,
-                        "밀크런_자동출력_14장.pptx",
-                    )
-                    st.success("✅ PPT 생성 완료! (정확히 14장이 출력되었습니다)")
+                    st.download_button("📥 다운로드", ppt_bytes, "밀크런_결과.pptx")
                 except Exception as e:
-                    st.error(f"PPT 생성 중 에러: {e}")
+                    st.error(f"오류 발생: {e}")
 
 if check_password():
     show_milkrun_ppt()
