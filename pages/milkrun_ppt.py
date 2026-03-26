@@ -9,18 +9,11 @@ from pptx import Presentation
 from pptx.util import Pt
 from auth import check_password
 
-# 1. 페이지 기본 설정 및 보안 체크 (최상단 배치)
+# 1. 페이지 기본 설정
 st.set_page_config(page_title="밀크런 PPT 변환", page_icon="🚚", layout="wide")
 
-if not check_password():
-    st.stop()
-
-# 2. 세션 상태 안전 초기화
-if "extracted_data" not in st.session_state:
-    st.session_state.extracted_data = []
-
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#  헬퍼 함수
+#  헬퍼 함수 (비즈니스 로직)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def get_pallet_capacity(sku: str) -> int:
@@ -117,10 +110,6 @@ def fill_slide_data(slide, p: dict, po_num: str, fc_name: str,
             except Exception:
                 pass
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#  PDF 데이터 추출
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
 def _extract_pdf_data(pdf_files) -> list[dict]:
     """업로드된 PDF 리스트에서 발주 데이터를 추출합니다. (홀수 페이지만)"""
     all_extracted = []
@@ -172,21 +161,17 @@ def _extract_pdf_data(pdf_files) -> list[dict]:
                     processed_in_page.add(sku)
     return all_extracted
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#  PPTX 생성 (핵심 로직 수정됨)
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
 def _build_pptx(tpl_file, edited_df: pd.DataFrame) -> bytes:
     """편집된 DataFrame으로 최종 PPTX를 생성하고 bytes를 반환합니다."""
     prs = Presentation(tpl_file)
     
-    # [수정 1] 원본 템플릿(0번) 외의 쓰레기 슬라이드가 있다면 삭제
+    # 원본 템플릿(0번) 외의 쓰레기 슬라이드가 있다면 삭제
     while len(prs.slides) > 1:
         rId = prs.slides._sle[1].rId
         prs.part.drop_rel(rId)
         del prs.slides._sle[1]
 
-    # [수정 2] '센터'가 아닌 '발주번호' 기준으로 그룹핑하여 섞임 방지
+    # '발주번호' 기준으로 그룹핑하여 섞임 방지
     for po_num, group in edited_df.groupby("발주번호"):
         center = group["센터"].iloc[0]
         mixed_items = []
@@ -225,11 +210,11 @@ def _build_pptx(tpl_file, edited_df: pd.DataFrame) -> bytes:
             }
             
             for _ in range(2): 
-                # [수정 3] 항상 깨끗한 원본(0번) 슬라이드를 복제하여 맨 뒤에 추가
+                # 항상 깨끗한 원본(0번) 슬라이드를 복제하여 맨 뒤에 추가
                 new_slide = duplicate_slide(prs, 0)
                 fill_slide_data(new_slide, p_info, po_num, center, y, m, d)
 
-    # [수정 4] 작업이 모두 끝난 후, 기준이 되었던 빈 템플릿(0번)은 삭제 처리
+    # 작업이 모두 끝난 후, 기준이 되었던 빈 템플릿(0번)은 삭제 처리
     if len(prs.slides) > 1:
         rId = prs.slides._sle[0].rId
         prs.part.drop_rel(rId)
@@ -240,44 +225,52 @@ def _build_pptx(tpl_file, edited_df: pd.DataFrame) -> bytes:
     return ppt_out.getvalue()
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#  메인 UI 실행부
+#  메인 UI 실행부 (함수로 래핑)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-st.title("🚚 밀크런 통합 편집 시스템 (N-M 정밀 분할 적용)")
+def show_milkrun_ppt():
+    st.title("🚚 밀크런 통합 편집 시스템 (N-M 정밀 분할 적용)")
 
-tpl_file = st.file_uploader("1. 양식 PPT 업로드", type=["pptx"])
-pdf_files = st.file_uploader(
-    "2. 발주서 PDF 업로드 (다중 선택)", type=["pdf"], accept_multiple_files=True
-)
+    # 세션 상태 안전 초기화
+    if "extracted_data" not in st.session_state:
+        st.session_state.extracted_data = []
 
-if tpl_file and pdf_files:
-    # ── PDF 분석 ──────────────────────────────────────
-    if st.button("🔍 발주서 데이터 정밀 분석 (홀수 장 전용)"):
-        with st.spinner("PDF 분석 중..."):
-            st.session_state.extracted_data = _extract_pdf_data(pdf_files)
-        st.rerun()
+    tpl_file = st.file_uploader("1. 양식 PPT 업로드", type=["pptx"])
+    pdf_files = st.file_uploader(
+        "2. 발주서 PDF 업로드 (다중 선택)", type=["pdf"], accept_multiple_files=True
+    )
 
-    # ── 편집 테이블 ───────────────────────────────────
-    if st.session_state.extracted_data:
-        st.subheader("📊 발주 데이터 통합 편집")
-        edited_df = st.data_editor(
-            pd.DataFrame(st.session_state.extracted_data),
-            num_rows="dynamic",
-            use_container_width=True,
-        )
+    if tpl_file and pdf_files:
+        # ── PDF 분석 ──────────────────────────────────────
+        if st.button("🔍 발주서 데이터 정밀 분석 (홀수 장 전용)"):
+            with st.spinner("PDF 분석 중..."):
+                st.session_state.extracted_data = _extract_pdf_data(pdf_files)
+            st.rerun()
 
-        # ── PPT 생성 ──────────────────────────────────────
-        if st.button("🚀 지능형 병합 및 PPT 생성"):
-            try:
-                ppt_bytes = _build_pptx(tpl_file, edited_df)
-                st.download_button(
-                    "📥 최종 PPT 다운로드",
-                    ppt_bytes,
-                    "밀크런_수량수정_결과.pptx",
-                )
-                st.success("✅ PPT 생성 완료! (14장 정상 출력)")
-            except Exception as e:
-                st.error(f"PPT 생성 중 에러: {e}")
+        # ── 편집 테이블 ───────────────────────────────────
+        if st.session_state.extracted_data:
+            st.subheader("📊 발주 데이터 통합 편집")
+            edited_df = st.data_editor(
+                pd.DataFrame(st.session_state.extracted_data),
+                num_rows="dynamic",
+                use_container_width=True,
+            )
 
+            # ── PPT 생성 ──────────────────────────────────────
+            if st.button("🚀 지능형 병합 및 PPT 생성"):
+                try:
+                    ppt_bytes = _build_pptx(tpl_file, edited_df)
+                    st.download_button(
+                        "📥 최종 PPT 다운로드",
+                        ppt_bytes,
+                        "밀크런_수량수정_결과.pptx",
+                    )
+                    st.success("✅ PPT 생성 완료! (14장 정상 출력)")
+                except Exception as e:
+                    st.error(f"PPT 생성 중 에러: {e}")
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  페이지 실행
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 if check_password():
     show_milkrun_ppt()
