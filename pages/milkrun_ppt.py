@@ -280,4 +280,4 @@ if tpl_file and pdf_files:
                 st.error(f"PPT 생성 중 에러: {e}")
 
 if check_password():
-    show_margin_calc()
+    show_milkrun_ppt()
