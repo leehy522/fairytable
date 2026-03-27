@@ -74,8 +74,8 @@ def show_margin_calc():
                 rec_nap_ga = round(total_box_cost / (1 - indiv_target), 0)
                 adjustment_val = rec_nap_ga - cur_nap_ga
 
-                # [핵심] 쿠팡 판매가 계산 (수익률 42% 기준)
-                # 판매가 = 납품가 / (1 - 0.42)
+                # [기존] 판매가 대비 수익률 42% 보전 (Margin)
+                # 판매가 = 납품가 / 0.58
                 coupang_selling_price = round(cur_nap_ga / 0.58, 0)
 
                 # [롤당 수익 및 방어선]
