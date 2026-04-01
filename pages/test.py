@@ -6,7 +6,7 @@ import io
 import re
 
 def show_margin_calc():
-    st.title("🛡️ 페어리테이블 마진 분석 및 단가 수정 시뮬레이터")
+    st.title("🛡️ 페어리테이블 마진 정밀 시뮬레이터")
     st.markdown("---")
 
     try:
@@ -22,32 +22,29 @@ def show_margin_calc():
         df_costs.columns = df_costs.columns.str.strip()
         df_costs['월'] = df_costs['월'].astype(str).str.strip()
 
-        # 2. 원가 기준 선택
-        selected_month = st.selectbox("📅 원가 기준 월 선택", df_costs['월'].unique().tolist())
-        target_cost_row = df_costs[df_costs['월'] == selected_month].iloc[0]
-        
         def clean_num(value):
             if pd.isna(value) or value == '': return 0
             s = re.sub(r'[^0-9.]', '', str(value))
             return pd.to_numeric(s, errors='coerce') if s else 0
 
-        sinjae = clean_num(target_cost_row.get('신재', 0))
-        jaesaeng = clean_num(target_cost_row.get('재생', 0))
-        anlyo = clean_num(target_cost_row.get('안료', 0))
-
-        # ---------------------------------------------------------
-        # [핵심] 3. 납품가 수동 편집 섹션
-        # ---------------------------------------------------------
-        st.subheader("✍️ 납품 단가 시뮬레이션")
-        st.info("시트의 현재 납품가가 기본으로 입력되어 있습니다. 협상할 단가를 직접 수정해 보세요.")
+        # 2. 원가 기준 선택
+        selected_month = st.selectbox("📅 원가 기준 월 선택", df_costs['월'].unique().tolist())
+        target_cost_row = df_costs[df_costs['월'] == selected_month].iloc[0]
         
-        # 편집용 데이터프레임 구성
+        # [오류 수정] 컬럼명에 '신재', '재생', '안료'가 포함되어 있으면 값을 가져오도록 유연하게 수정
+        # 이 부분이 0이면 아래 계산식에서 비닐값이 증발합니다.
+        sinjae = clean_num(next((target_cost_row[k] for k in target_cost_row.index if '신재' in k), 0))
+        jaesaeng = clean_num(next((target_cost_row[k] for k in target_cost_row.index if '재생' in k), 0))
+        anlyo = clean_num(next((target_cost_row[k] for k in target_cost_row.index if '안료' in k), 0))
+
+        # 3. 납품가 수동 편집 섹션
+        st.subheader("✍️ 납품 단가 시뮬레이션")
+        
         edit_base = df_products[['SKU ID', '상품명']].copy()
-        # 시트에서 '납품가'가 포함된 컬럼 찾기
         original_price_col = next((k for k in df_products.columns if '납품가' in k), None)
         edit_base['수정납품가'] = df_products[original_price_col].apply(clean_num)
 
-        # 데이터 에디터 출력
+        # [실시간 반영용 key 추가] 
         edited_price_df = st.data_editor(
             edit_base,
             column_config={
@@ -56,24 +53,15 @@ def show_margin_calc():
                 "수정납품가": st.column_config.NumberColumn("납품가(수정가능)", format="%d원")
             },
             hide_index=True,
-            use_container_width=True
+            use_container_width=True,
+            key="margin_editor" 
         )
         
-        # 수정된 단가를 매핑하기 위한 딕셔너리 생성
         price_map = edited_price_df.set_index('SKU ID')['수정납품가'].to_dict()
 
-        # ---------------------------------------------------------
-        # 4. 분석 로직 정의
-        # ---------------------------------------------------------
-        COL_SKU = 'SKU ID'
-        COL_NAME = '상품명'
-        COL_BOX_COST = '제조원가(박스)'
-        COL_CUR_PRICE = '적용납품가'
-        COL_REC_PRICE = '추천납품가'
-        COL_ADJ = '단가 조정액(+/-)'
-        COL_COUPANG = '쿠팡판매가(42%)'
-        COL_PROFIT = '롤당수익'
-        COL_STATUS = '방어선'
+        # 4. 분석 로직 정의 (윤겸님의 계산식 절대 보존)
+        COL_SKU, COL_NAME, COL_BOX_COST, COL_CUR_PRICE, COL_REC_PRICE, COL_ADJ, COL_COUPANG, COL_PROFIT, COL_STATUS = \
+            'SKU ID', '상품명', '제조원가(박스)', '적용납품가', '추천납품가', '단가 조정액(+/-)', '쿠팡판매가(42%)', '롤당수익', '방어선'
 
         def calc_logic(row):
             try:
@@ -81,7 +69,9 @@ def show_margin_calc():
                 garo = clean_num(row.get('가로', 90))
                 sero = clean_num(row.get('세로', 100))
                 dukki = clean_num(row.get('두께', 0.0125))
-                length = clean_num(next((row[k] for k in row.index if '원단' in k and '길이' in k), 1200))
+                # 리스트 컴프리헨션 오류 방지를 위한 안전한 파싱
+                length_val = next((row[k] for k in row.index if '원단' in k and '길이' in k), 1200)
+                length = clean_num(length_val)
                 box_pcs = clean_num(row.get('매수', 100))
                 box_cost = clean_num(row.get('박스비', 0))
                 
@@ -89,23 +79,24 @@ def show_margin_calc():
                 sku_id = str(row.get('SKU ID', ''))
                 applied_nap_ga = price_map.get(sku_id, clean_num(row.get(original_price_col, 0)))
 
-                # [목표 수익률 및 원단가 계산]
-                target_col = next((k for k in row.index if '목표' in k and ('률' in k or '율' in k)), None)
-                target_val = clean_num(row.get(target_col, 20))
-                indiv_target = target_val / 100 if target_val > 1 else target_val
-
+                # [배합 비율 계산]
                 s_val = clean_num(next((row[k] for k in row.index if '신재' in k and '비율' in k), 100))
                 j_val = clean_num(next((row[k] for k in row.index if '재생' in k and '비율' in k), 0))
                 a_val = clean_num(next((row[k] for k in row.index if '안료' in k and '비율' in k), 0))
                 s_r, j_r, a_r = (v/100 if v > 1 else v for v in [s_val, j_val, a_val])
+                
+                # [원가 및 추천가 계산식 - 보존]
                 unit_price = (sinjae * s_r) + (jaesaeng * j_r) + (anlyo * a_r)
-
-                # [원가 및 추천가 계산]
                 single_weight = garo * sero * dukki * 0.000184
                 total_box_cost = round((single_weight * box_pcs * unit_price) + box_cost, 0)
+                
+                target_col = next((k for k in row.index if '목표' in k and ('률' in k or '율' in k)), None)
+                target_val = clean_num(row.get(target_col, 20))
+                indiv_target = target_val / 100 if target_val > 1 else target_val
+                
                 rec_nap_ga = round(total_box_cost / (1 - indiv_target), 0)
                 
-                # [수정 단가 기반 지표]
+                # [지표 산출]
                 adjustment_val = rec_nap_ga - applied_nap_ga
                 coupang_selling_price = round(applied_nap_ga / 0.58, 0)
 
@@ -121,15 +112,8 @@ def show_margin_calc():
                 def fmt_adj(v): return f"{'+' if v > 0 else ''}{int(round(v, 0)):,}원"
 
                 return pd.Series([
-                    sku_id.split('.')[0],
-                    row.get('상품명', ''),
-                    fmt(total_box_cost),
-                    fmt(applied_nap_ga),
-                    fmt(rec_nap_ga),
-                    fmt_adj(adjustment_val),
-                    fmt(coupang_selling_price),
-                    fmt(current_roll_profit),
-                    status
+                    sku_id.split('.')[0], row.get('상품명', ''), fmt(total_box_cost), fmt(applied_nap_ga), 
+                    fmt(rec_nap_ga), fmt_adj(adjustment_val), fmt(coupang_selling_price), fmt(current_roll_profit), status
                 ], index=[COL_SKU, COL_NAME, COL_BOX_COST, COL_CUR_PRICE, COL_REC_PRICE, COL_ADJ, COL_COUPANG, COL_PROFIT, COL_STATUS])
             except:
                 return pd.Series(['', row.get('상품명', ''), '0원', '0원', '0원', '0원', '0원', '0원', '오류'], 
@@ -137,21 +121,11 @@ def show_margin_calc():
 
         # 결과 출력
         df_res = df_products.apply(calc_logic, axis=1)
-        display_cols = [COL_SKU, COL_NAME, COL_BOX_COST, COL_CUR_PRICE, COL_REC_PRICE, COL_ADJ, COL_COUPANG, COL_PROFIT, COL_STATUS]
         
         st.subheader(f"📊 실시간 분석 리포트 ({selected_month} 기준)")
         
-        def style_status(val):
-            if '🚨' in str(val): return 'background-color: #ffcccc; color: red; font-weight: bold'
-            if '⚠️' in str(val): return 'background-color: #fff9c4; color: orange'
-            return ''
-
-        st.dataframe(df_res[display_cols].style.applymap(style_status, subset=[COL_STATUS]), use_container_width=True)
-
-        buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            df_res[display_cols].to_excel(writer, index=False, sheet_name='통합분석')
-        st.download_button("📥 수정된 리포트 다운로드", buffer.getvalue(), f"페어리테이블_분석_{selected_month}.xlsx")
+        # [버전 호환성 수정] applymap 대신 map 사용 (최신 Pandas 에러 방지)
+        st.dataframe(df_res.style.map(lambda v: 'color: red; font-weight: bold;' if '🚨' in str(v) else '', subset=[COL_STATUS]), use_container_width=True)
 
     except Exception as e:
         st.error(f"실행 오류: {e}")
