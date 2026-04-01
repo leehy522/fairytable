@@ -109,7 +109,7 @@ def show_openmarket_calc():
                 s_r, j_r, a_r = (v/100 if v > 1 else v for v in [s_val, j_val, a_val])
                 unit_price = (sinjae * s_r) + (jaesaeng * j_r) + (anlyo * a_r)
 
-                roll_weight = garo * dukki * length * 0.0184
+                roll_weight = garo * dukki * length * 0.0192
                 total_pcs_in_roll = clean_num(next((row[k] for k in row.index if '롤당' in k and ('수량' in k or '카운팅' in k)), 1))
                 boxes_per_roll = total_pcs_in_roll / box_pcs if box_pcs > 0 else 1
                 
