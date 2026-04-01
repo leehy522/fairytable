@@ -7,7 +7,7 @@ import re
 import os
 
 def show_margin_calc():
-    st.title("🛡️ 페어리테이블 마진 정밀 시뮬레이터 (V2.1 - 추천가 수익 분석)")
+    st.title("🛡️ 페어리테이블 마진 정밀 시뮬레이터 (V2.1 - 최신 표준)")
     st.markdown("---")
 
     try:
@@ -54,7 +54,7 @@ def show_margin_calc():
         )
         price_map = edited_output.set_index('SKU ID')['적용납품가'].to_dict()
 
-        # 4. 분석 로직 (계산식 보존 + 추천가 수익 항목 추가)
+        # 4. 분석 로직 (V2.1 계산식 고정)
         COL_SKU, COL_NAME, COL_COST, COL_APPLIED, COL_REC, COL_UNIT_PROFIT, COL_PROFIT, COL_REC_UNIT_PROFIT, COL_REC_PROFIT, COL_STATUS = \
             'SKU ID', '상품명', '제조원가(박스)', '적용납품가', '추천납품가', '현재 상품수익', '현재 롤수익', '추천가 상품수익', '추천가 롤수익', '방어선'
 
@@ -63,7 +63,7 @@ def show_margin_calc():
                 sku_id = str(row.get('SKU ID', ''))
                 applied_p = price_map.get(sku_id, clean_num(row.get(orig_price_col, 0)))
                 
-                # 규격 데이터 (계산식 보존)
+                # 규격 데이터 (절대 보존)
                 garo = clean_num(row.get('가로', 90))
                 sero = clean_num(row.get('세로', 100))
                 dukki = clean_num(row.get('두께', 0.0125))
@@ -71,14 +71,14 @@ def show_margin_calc():
                 box_pcs = clean_num(row.get('매수', 100))
                 box_cost = clean_num(row.get('박스비', 0))
                 
-                # 단위 원가 계산
+                # 단위 원가 계산 (비율 보존)
                 s_val = clean_num(next((row[k] for k in row.index if '신재' in k and '비율' in k), 100))
                 j_val = clean_num(next((row[k] for k in row.index if '재생' in k and '비율' in k), 0))
                 a_val = clean_num(next((row[k] for k in row.index if '안료' in k and '비율' in k), 0))
                 s_r, j_r, a_r = (v/100 if v > 1 else v for v in [s_val, j_val, a_val])
                 unit_price = (sinjae * s_r) + (jaesaeng * j_r) + (anlyo * a_r)
 
-                # 제조 원가 및 추천가 산출
+                # 제조 원가 및 추천가 산출 (비중 0.000184 고정)
                 single_weight = garo * sero * dukki * 0.000184
                 total_box_cost = round((single_weight * box_pcs * unit_price) + box_cost, 0)
                 
@@ -87,18 +87,19 @@ def show_margin_calc():
                 indiv_target = target_val / 100 if target_val > 1 else target_val
                 rec_nap_ga = round(total_box_cost / (1 - indiv_target), 0)
                 
-                # [수익 분석 데이터]
+                # 수익 분석 데이터
                 total_pcs_in_roll = clean_num(next((row[k] for k in row.index if '롤당' in k and ('수량' in k or '카운팅' in k)), 1))
                 boxes_per_roll = total_pcs_in_roll / box_pcs if box_pcs > 0 else 1
                 
-                # 1. 현재 수익 (적용납품가 기준)
+                # 1. 현재 수익
                 current_unit_profit = applied_p - total_box_cost
                 current_roll_profit = current_unit_profit * boxes_per_roll
                 
-                # 2. 추천가 수익 (추천납품가 기준)
+                # 2. 추천가 수익
                 rec_unit_profit = rec_nap_ga - total_box_cost
                 rec_roll_profit = rec_unit_profit * boxes_per_roll
                 
+                # 방어선 판정 (15,000원 기준)
                 status = "✅ 정상"
                 if current_roll_profit < 15000: status = "🚨 적자위험"
                 elif current_roll_profit > 50000: status = "⚠️ 고마진"
@@ -116,7 +117,7 @@ def show_margin_calc():
 
         # 5. 리포트 출력
         df_res = df_products.apply(calc_logic, axis=1)
-        st.subheader(f"📊 {selected_month} 마진 상세 분석")
+        st.subheader(f"📊 {selected_month} 마진 상세 분석 리포트")
         
         st.dataframe(
             df_res.style.map(lambda v: 'color: red; font-weight: bold;' if '🚨' in str(v) else '', subset=[COL_STATUS]), 
