@@ -5,13 +5,14 @@ from auth import check_password
 import io
 import re
 import os
+import datetime # [추가] 날짜 인식을 위한 모듈
 
 def show_openmarket_calc():
-    st.title("🛍️ 오픈마켓 수익 분석 시뮬레이터 (V2.1 - 판매가 자동 로드)")
+    st.title("🛍️ 오픈마켓 수익 분석 시뮬레이터 (V2.2 - 현재 월 자동 로드)")
     st.markdown("---")
 
     try:
-        # 1. 데이터 로드 (Google Sheets)
+        # 1. 데이터 로드
         sheet_id = "13ldXPSVT7CFyNZRj-6Rlv3aXMqOhflquUtcZom5cJzU"
         sheet_name_1 = quote("상품목록")
         sheet_name_2 = quote("원가기준")
@@ -28,44 +29,57 @@ def show_openmarket_calc():
             s = re.sub(r'[^0-9.]', '', str(value))
             return pd.to_numeric(s, errors='coerce') if s else 0
 
-        # SKU ID 동기화용 클렌징
         df_products['SKU ID'] = df_products['SKU ID'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
 
-        # 2. 사이드바 설정
-        st.sidebar.header("⚙️ 오픈마켓 설정")
-        platform = st.sidebar.selectbox("플랫폼 선택", ["네이버 스마트스토어", "알리익스프레스"])
+        # ---------------------------------------------------------
+        # [핵심] 2. 현재 월 자동 기본값 설정 로직
+        # ---------------------------------------------------------
+        now = datetime.datetime.now()
+        month_options = df_costs['월'].unique().tolist()
         
-        fee_rate = 0.06 if platform == "네이버 스마트스토어" else 0.12
-        st.sidebar.write(f"현재 수수료율: {fee_rate*100:.1f}%")
+        # 기본 인덱스 설정 (찾지 못할 경우 0번째)
+        default_month_index = 0
         
-        shipping_fee = st.sidebar.number_input("건당 택배비 (원)", value=2400)
-        packing_extra = st.sidebar.number_input("추가 부자재비 (봉투/테이프 등)", value=0)
+        # 시트의 '월' 형식이 '2026-04' 혹은 '4월' 등일 경우를 대비한 매칭 작업
+        for i, m_val in enumerate(month_options):
+            # 현재 연도와 월이 데이터에 포함되어 있는지 확인
+            if str(now.year) in m_val and str(now.month).zfill(2) in m_val:
+                default_month_index = i
+                break
+            elif f"{now.month}월" in m_val:
+                default_month_index = i
+                break
 
-        # 3. 원가 기준 설정
-        selected_month = st.selectbox("📅 원가 기준 월 선택", df_costs['월'].unique().tolist())
+        selected_month = st.selectbox(
+            "📅 원가 기준 월 선택", 
+            month_options, 
+            index=default_month_index # 현재 월을 디폴트로 설정
+        )
+        # ---------------------------------------------------------
+
         target_cost_row = df_costs[df_costs['월'] == selected_month].iloc[0]
         
         sinjae = clean_num(next((target_cost_row[k] for k in target_cost_row.index if '신재' in k), 0))
         jaesaeng = clean_num(next((target_cost_row[k] for k in target_cost_row.index if '재생' in k), 0))
         anlyo = clean_num(next((target_cost_row[k] for k in target_cost_row.index if '안료' in k), 0))
 
-        # 4. 판매가 편집기 (시트 데이터 자동 로드)
+        # 3. 사이드바 및 판매가 편집기
+        st.sidebar.header("⚙️ 오픈마켓 설정")
+        platform = st.sidebar.selectbox("플랫폼 선택", ["네이버 스마트스토어", "알리익스프레스"])
+        fee_rate = 0.06 if platform == "네이버 스마트스토어" else 0.12
+        shipping_fee = st.sidebar.number_input("건당 택배비 (원)", value=2400)
+        packing_extra = st.sidebar.number_input("추가 부자재비 (원)", value=0)
+
         st.subheader(f"✍️ {platform} 판매가 설정")
-        st.caption("시트의 '오픈마켓 판매가'가 기본으로 입력됩니다. 수정 시 하단에 즉시 반영됩니다.")
-        
-        # [핵심] 시트에서 '오픈마켓 판매가' 컬럼 찾기
         open_price_col = next((k for k in df_products.columns if '오픈마켓' in k and '판매가' in k), None)
         
         edit_df = df_products[['SKU ID', '상품명']].copy()
-        # 시트에 해당 컬럼이 있으면 가져오고, 없으면 0원 혹은 기존 로직 적용
         if open_price_col:
             edit_df['설정판매가'] = df_products[open_price_col].apply(clean_num)
         else:
             edit_df['설정판매가'] = 0
-            st.warning("⚠️ 시트에서 '오픈마켓 판매가' 컬럼을 찾을 수 없습니다.")
         
         edit_df.set_index('SKU ID', inplace=True)
-
         edited_output = st.data_editor(
             edit_df,
             column_config={
@@ -73,12 +87,11 @@ def show_openmarket_calc():
                 "설정판매가": st.column_config.NumberColumn("판매가(수정)", format="%d원")
             },
             use_container_width=True, 
-            key="openmarket_sync_editor_v3" 
+            key="openmarket_sync_editor_v4" 
         )
-        
         price_map = edited_output['설정판매가'].to_dict()
 
-        # 5. 분석 로직 (롤 무게 기반 제조원가 산출)
+        # 4. 분석 로직 (V3.0 롤 무게 기반)
         def calc_open_logic(row):
             try:
                 sku_id = row['SKU ID']
@@ -118,9 +131,9 @@ def show_openmarket_calc():
                 return pd.Series([row.get('SKU ID', ''), '오류', '0.00kg', '0원', '0원', '0원', '0원', '0원', '0%'], 
                                  index=['SKU ID', '상품명', '롤무게(kg)', '제조원가', '판매가', '수수료', '택배비', '최종수익', '마진율'])
 
-        # 6. 결과 출력
+        # 5. 리포트 출력
         df_res = df_products.apply(calc_open_logic, axis=1)
-        st.subheader(f"📊 {platform} 수익 시뮬레이션 리포트")
+        st.subheader(f"📊 {selected_month} 수익 시뮬레이션 결과")
         
         def highlight_loss(val):
             if isinstance(val, str) and '-' in val and ('원' in val or '%' in val):
@@ -129,8 +142,7 @@ def show_openmarket_calc():
 
         st.dataframe(
             df_res.style.map(highlight_loss, subset=['최종수익', '마진율']), 
-            use_container_width=True, 
-            hide_index=True
+            use_container_width=True, hide_index=True
         )
 
     except Exception as e:
