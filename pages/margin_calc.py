@@ -104,8 +104,8 @@ def show_margin_calc():
                 s_r, j_r, a_r = (v/100 if v > 1 else v for v in [s_val, j_val, a_val])
                 unit_price = (sinjae * s_r) + (jaesaeng * j_r) + (anlyo * a_r)
 
-                # [V2.1 표준 수식] 0.000184 비중 고정
-                single_weight = garo * sero * dukki * 0.000184
+                # [V2.1 표준 수식] 0.000192 비중 고정
+                single_weight = garo * sero * dukki * 0.000192
                 total_box_cost = round((single_weight * box_pcs * unit_price) + box_cost, 0)
                 
                 target_col = next((k for k in row.index if '목표' in k and ('률' in k or '율' in k)), None)
