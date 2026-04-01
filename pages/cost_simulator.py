@@ -29,14 +29,14 @@ def _section_fabric_spec() -> None:
             v_thick = st.number_input(
                 "두께 (mm)", value=0.009, format="%.3f", key="cost_v_thick"
             )
-        weight = (v_width / 1000) * v_length * 2 * 0.92 * v_thick
+        weight = (v_width / 1000) * v_length * 2 * 0.96 * v_thick
         st.info(f"💡 예상 무게: {weight:.2f} kg")
     else:
         with c3:
             v_weight_in = st.number_input(
                 "실제 무게 (kg)", value=13.8, key="cost_v_weight_in"
             )
-        thick = v_weight_in / ((v_width / 1000) * v_length * 2 * 0.92)
+        thick = v_weight_in / ((v_width / 1000) * v_length * 2 * 0.96)
         st.warning(f"💡 역산된 두께: {thick:.4f} mm")
 
 
@@ -83,7 +83,7 @@ def _section_production_cost(final_unit_price: float) -> None:
             "비닐 두께 (mm)", value=0.009, step=0.001, format="%.3f", key="prod_thick_mm"
         )
 
-    total_weight = (width_mm / 1000) * length_m * 2 * 0.92 * thick_mm
+    total_weight = (width_mm / 1000) * length_m * 2 * 0.96 * thick_mm
     total_cost = total_weight * final_unit_price
 
     col_res1, col_res2 = st.columns(2)
