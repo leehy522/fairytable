@@ -48,7 +48,7 @@ def show_margin_calc():
         anlyo_p = clean_num(next((c_row[k] for k in c_row.index if '안료' in k and '비율' not in k), 0))
 
         # 3. 월별 납품가 매핑
-        p_col = sel_month if sel_month in df_m.columns else '기본'
+        p_col = sel_month if sel_month in df_m.columns else 'default'
         m_price_dict = df_m.set_index(m_sku_col)[p_col].to_dict()
 
         st.subheader("✍️ 납품 단가 시뮬레이션")
