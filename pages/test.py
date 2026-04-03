@@ -7,36 +7,36 @@ import re
 import datetime
 
 def show_margin_calc():
-    st.title("🛡️ 페어리테이블 마진 정밀 시뮬레이터 (V2.2)")
+    st.title("🛡️ 페어리테이블 마진 정밀 시뮬레이터 (V2.3)")
     st.markdown("---")
 
     try:
-        # 1. 데이터 로드
+        # 1. 데이터 로드 (Google Sheets)
         sheet_id = "13ldXPSVT7CFyNZRj-6Rlv3aXMqOhflquUtcZom5cJzU"
         sheet_name_1 = quote("상품목록")
         sheet_name_2 = quote("원가기준")
+        sheet_name_3 = quote("월별납품가") # [신규] 월별 단가 탭 추가
         
         df_products = pd.read_csv(f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name_1}")
         df_costs = pd.read_csv(f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name_2}")
+        df_monthly_prices = pd.read_csv(f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name_3}")
         
-        df_products.columns = df_products.columns.str.strip()
-        df_costs.columns = df_costs.columns.str.strip()
+        # 컬럼 정리
+        for df in [df_products, df_costs, df_monthly_prices]:
+            df.columns = df.columns.str.strip()
+        
         df_costs['월'] = df_costs['월'].astype(str).str.strip()
+        df_products['SKU ID'] = df_products['SKU ID'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+        df_monthly_prices['SKU ID'] = df_monthly_prices['SKU ID'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
 
         def clean_num(value):
             if pd.isna(value) or value == '': return 0
             s = re.sub(r'[^0-9.]', '', str(value))
             return pd.to_numeric(s, errors='coerce') if s else 0
 
-        df_products['SKU ID'] = df_products['SKU ID'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
-
-        # ---------------------------------------------------------
-        # 2. 사이드바 - 일괄 가격 조정 (%) 및 월 선택
-        # ---------------------------------------------------------
+        # 2. 사이드바 설정 (일괄 조정 및 월 선택)
         st.sidebar.header("⚙️ 시뮬레이션 설정")
-        
-        # [신규] 퍼센트 단위 일괄 조정 기능
-        adj_pct = st.sidebar.number_input("📈 전 품목 일괄 가격 조정 (%)", value=0.0, step=0.5, help="시트의 원래 납품가에서 입력한 %만큼 가산하여 시작합니다.")
+        adj_pct = st.sidebar.number_input("📈 전 품목 일괄 가격 조정 (%)", value=0.0, step=0.5)
         
         now = datetime.datetime.now()
         month_options = df_costs['월'].unique().tolist()
@@ -52,21 +52,38 @@ def show_margin_calc():
         selected_month = st.selectbox("📅 원가 기준 월 선택", month_options, index=default_month_index)
         target_cost_row = df_costs[df_costs['월'] == selected_month].iloc[0]
         
+        # 원료 단가 추출
         sinjae = clean_num(next((target_cost_row[k] for k in target_cost_row.index if '신재' in k), 0))
         jaesaeng = clean_num(next((target_cost_row[k] for k in target_cost_row.index if '재생' in k), 0))
         anlyo = clean_num(next((target_cost_row[k] for k in target_cost_row.index if '안료' in k), 0))
 
-        # 3. 납품가 편집기 (일괄 조정 반영)
+        # ---------------------------------------------------------
+        # [핵심] 3. 월별 납품가 매핑 로직
+        # ---------------------------------------------------------
+        # 선택된 월(YYYY-MM)이 월별납품가 시트의 컬럼으로 존재하는지 확인
+        if selected_month in df_monthly_prices.columns:
+            price_col = selected_month
+            price_source_msg = f"✅ 현재 '{selected_month}' 특수 단가를 적용 중입니다."
+        else:
+            price_col = '기본'
+            price_source_msg = f"ℹ️ '{selected_month}' 전용 단가가 없어 '기본' 단가를 적용합니다."
+
+        # SKU ID 기준으로 단가 매핑용 딕셔너리 생성
+        master_price_dict = df_monthly_prices.set_index('SKU ID')[price_col].to_dict()
+
         st.subheader("✍️ 납품 단가 시뮬레이션")
-        if adj_pct != 0:
-            st.warning(f"💡 현재 모든 품목에 {adj_pct}% 인상/인하가 적용된 상태입니다.")
-            
-        orig_price_col = next((k for k in df_products.columns if '납품가' in k), None)
+        st.info(price_source_msg)
+        
         edit_df = df_products[['SKU ID', '상품명']].copy()
         
-        # [핵심] 일괄 조정 로직: (원본가) * (1 + 조정률/100)
-        base_prices = df_products[orig_price_col].apply(clean_num)
-        edit_df['적용납품가'] = (base_prices * (1 + adj_pct / 100)).round(0).astype(int)
+        # 월별납품가 시트에서 단가를 가져오되, 없는 SKU는 0원 처리
+        def get_base_price(sku):
+            raw_val = master_price_dict.get(sku, 0)
+            return clean_num(raw_val)
+
+        # 기초 단가 설정 + 일괄 조정(%) 반영
+        edit_df['적용납품가'] = edit_df['SKU ID'].apply(get_base_price)
+        edit_df['적용납품가'] = (edit_df['적용납품가'] * (1 + adj_pct / 100)).round(0).astype(int)
         
         edit_df.set_index('SKU ID', inplace=True)
 
@@ -77,7 +94,7 @@ def show_margin_calc():
                 "적용납품가": st.column_config.NumberColumn("납품가(직접수정 가능)", format="%d원")
             },
             use_container_width=True, 
-            key="realtime_sync_editor_v8"
+            key="realtime_sync_editor_v9"
         )
         
         price_map = edited_output['적용납품가'].to_dict()
@@ -89,8 +106,9 @@ def show_margin_calc():
         def calc_logic(row):
             try:
                 sku_id = row['SKU ID']
-                applied_p = price_map.get(sku_id, clean_num(row.get(orig_price_col, 0)))
+                applied_p = price_map.get(sku_id, 0)
                 
+                # 규격 데이터 (0.000184 비중 고정)
                 garo = clean_num(row.get('가로', 90))
                 sero = clean_num(row.get('세로', 100))
                 dukki = clean_num(row.get('두께', 0.0125))
@@ -98,13 +116,13 @@ def show_margin_calc():
                 box_pcs = clean_num(row.get('매수', 100))
                 box_cost = clean_num(row.get('박스비', 0))
                 
+                # 단위 원가 계산
                 s_val = clean_num(next((row[k] for k in row.index if '신재' in k and '비율' in k), 100))
                 j_val = clean_num(next((row[k] for k in row.index if '재생' in k and '비율' in k), 0))
                 a_val = clean_num(next((row[k] for k in row.index if '안료' in k and '비율' in k), 0))
                 s_r, j_r, a_r = (v/100 if v > 1 else v for v in [s_val, j_val, a_val])
                 unit_price = (sinjae * s_r) + (jaesaeng * j_r) + (anlyo * a_r)
 
-                # [V2.1 표준 수식] 0.000184 비중 고정
                 single_weight = garo * sero * dukki * 0.000184
                 total_box_cost = round((single_weight * box_pcs * unit_price) + box_cost, 0)
                 
@@ -131,13 +149,12 @@ def show_margin_calc():
                     rec_unit_profit, rec_roll_profit, status
                 ], index=[COL_SKU, COL_NAME, COL_COST, COL_APPLIED, COL_REC, COL_UNIT_PROFIT, COL_PROFIT, COL_REC_UNIT_PROFIT, COL_REC_PROFIT, COL_STATUS])
             except:
-                return pd.Series([row.get('SKU ID', ''), '오류', 0, 0, 0, 0, 0, 0, 0, '오류'], index=[COL_SKU, COL_NAME, COL_COST, COL_APPLIED, COL_REC, COL_UNIT_PROFIT, COL_PROFIT, COL_REC_UNIT_PROFIT, COL_REC_PROFIT, COL_STATUS])
+                return pd.Series([sku_id, '오류', 0, 0, 0, 0, 0, 0, 0, '오류'], index=[COL_SKU, COL_NAME, COL_COST, COL_APPLIED, COL_REC, COL_UNIT_PROFIT, COL_PROFIT, COL_REC_UNIT_PROFIT, COL_REC_PROFIT, COL_STATUS])
 
-        # 5. 리포트 출력 및 엑셀 다운로드
+        # 5. 결과 출력 및 엑셀 다운로드
         df_res = df_products.apply(calc_logic, axis=1)
-        st.subheader(f"📊 {selected_month} 마진 상세 분석")
         
-        # 화면 출력용 포맷팅 (쉼표 및 원 표시)
+        # 화면용 포맷팅
         df_display = df_res.copy()
         for col in [COL_COST, COL_APPLIED, COL_REC, COL_UNIT_PROFIT, COL_PROFIT, COL_REC_UNIT_PROFIT, COL_REC_PROFIT]:
             df_display[col] = df_display[col].apply(lambda x: f"{int(x):,}원")
@@ -147,17 +164,16 @@ def show_margin_calc():
             use_container_width=True, hide_index=True
         )
 
-        # [신규] 엑셀 다운로드 버튼
+        # 엑셀 다운로드
         st.markdown("---")
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             df_res.to_excel(writer, index=False, sheet_name='마진분석리포트')
-            # 엑셀 서식 자동 조정 등 추가 가능
         
         st.download_button(
             label="📥 분석 리포트 엑셀 다운로드",
             data=buffer.getvalue(),
-            file_name=f"페어리테이블_마진분석_{selected_month}_{datetime.datetime.now().strftime('%Y%m%d')}.xlsx",
+            file_name=f"페어리테이블_마진분석_{selected_month}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
