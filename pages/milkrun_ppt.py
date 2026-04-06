@@ -180,7 +180,7 @@ def _build_pptx(tpl_file_path: str, edited_df: pd.DataFrame) -> bytes:
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def show_milkrun_ppt():
-    st.title("🚚 페어리테림 밀크런 통합 관리 시스템")
+    st.title("🚚 페어리드림 밀크런 통합 관리 시스템")
 
     if "extracted_data" not in st.session_state:
         st.session_state.extracted_data = []
