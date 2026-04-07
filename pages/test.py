@@ -8,11 +8,12 @@ import datetime
 import unicodedata
 
 def show_margin_calc():
-    st.title("🛡️ 페어리테이블 마진 정밀 시뮬레이터 (V3.9)")
+    # 버전 표기 업데이트
+    st.title("🛡️ 페어리테이블 마진 정밀 시뮬레이터 (V4.0 - 논리 통합)")
     st.markdown("---")
 
     try:
-        # 1. 데이터 로드 (Google Sheets)
+        # 1. 데이터 로드 (V3.9 기능 유지)
         sheet_id = "13ldXPSVT7CFyNZRj-6Rlv3aXMqOhflquUtcZom5cJzU"
         s1, s2, s3 = quote("상품목록"), quote("원가기준"), quote("월별납품가")
         
@@ -20,7 +21,7 @@ def show_margin_calc():
         df_c = pd.read_csv(f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={s2}")
         df_m = pd.read_csv(f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={s3}")
         
-        # 모든 칼럼명 정규화 및 공백 제거
+        # 칼럼명 정규화
         for df in [df_p, df_c, df_m]:
             df.columns = [unicodedata.normalize('NFC', str(c)).strip() for c in df.columns]
 
@@ -35,7 +36,7 @@ def show_margin_calc():
         m_sku_col = next((c for c in df_m.columns if 'SKU' in c.upper()), df_m.columns[0])
         df_m[m_sku_col] = df_m[m_sku_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
 
-        # 2. 사이드바 설정 (일괄 조정 및 월 자동 선택)
+        # 2. 사이드바 및 월 자동 선택 (V3.9 기능 유지)
         st.sidebar.header("⚙️ 시뮬레이션 설정")
         adj_pct = st.sidebar.number_input("📈 전 품목 일괄 조정 (%)", value=0.0, step=0.5)
         
@@ -44,42 +45,34 @@ def show_margin_calc():
         d_idx = next((i for i, m in enumerate(months) if str(now.year) in m and str(now.month).zfill(2) in m), 0)
         sel_month = st.selectbox("📅 원가 기준 월 선택", months, index=d_idx)
         
-        # 원료 단가 추출 (비율 컬럼 제외 로직)
+        # 원료 단가 추출 (비율 제외 로직)
         c_row = df_c[df_c['월'] == sel_month].iloc[0]
         sinjae_p = clean_num(next((c_row[k] for k in c_row.index if '신재' in k and '비율' not in k), 0))
         jaesaeng_p = clean_num(next((c_row[k] for k in c_row.index if '재생' in k and '비율' not in k), 0))
 
-        # ---------------------------------------------------------
-        # [수정] 3. 영문 'default' 기반 단가 열 매핑
-        # ---------------------------------------------------------
+        # 3. 단가 열 매핑 (default 우선 로직 유지)
         target_month_col = sel_month.replace(' ', '')
-        
-        # 1순위: 선택한 월(예: 2026-04) 열이 있으면 사용
         if target_month_col in df_m.columns:
             p_col = target_month_col
-        # 2순위: 영문 'default' (대소문자 무시) 열 찾기
         else:
             p_col = next((c for c in df_m.columns if c.lower() == 'default'), None)
-            # 3순위: 그래도 없으면 기존 '기본' 열 탐색 (하위 호환)
-            if not p_col:
-                p_col = next((c for c in df_m.columns if '기본' in c), df_m.columns[2])
+            if not p_col: p_col = next((c for c in df_m.columns if '기본' in c), df_m.columns[2])
         
         st.info(f"✅ 납품가 기준: '{p_col}' 열 데이터 적용 중")
         m_price_dict = df_m.set_index(m_sku_col)[p_col].to_dict()
 
-        # 4. 시뮬레이션 데이터 에디터
-        st.subheader("✍️ 납품 단가 시뮬레이션")
+        # 4. 시뮬레이션 데이터 에디터 (V3.9 기능 유지)
         edit_df = df_p[[sku_col, '상품명']].copy()
         edit_df.rename(columns={sku_col: 'SKU ID'}, inplace=True)
         edit_df['적용납품가'] = edit_df['SKU ID'].apply(lambda x: clean_num(m_price_dict.get(x, 0)))
         edit_df['적용납품가'] = (edit_df['적용납품가'] * (1 + adj_pct/100)).round(0).astype(int)
         
         edit_df.set_index('SKU ID', inplace=True)
-        e_output = st.data_editor(edit_df, use_container_width=True, key="v39_sync")
+        e_output = st.data_editor(edit_df, use_container_width=True, key="v40_sync")
         p_map = e_output['적용납품가'].to_dict()
 
         # ---------------------------------------------------------
-        # 5. 분석 로직 (롤 무게 기반 - 제조원가 보호)
+        # [신규 로직 이식] 5. 분석 로직 (V4.0 체질 개선 엔진)
         # ---------------------------------------------------------
         def calc_logic(row):
             try:
@@ -93,45 +86,59 @@ def show_margin_calc():
                 box_pcs = clean_num(row.get('매수', 100))
                 box_cost = clean_num(row.get('박스비', 0))
                 
-                # 원재료 배합비 (V2.1 고정 수치 적용)
+                # 원재료 배합비
                 s_r = clean_num(next((row[k] for k in row.index if '신재' in k and '비율' in k), 100)) / 100
                 j_r = clean_num(next((row[k] for k in row.index if '재생' in k and '비율' in k), 0)) / 100
                 unit_price = (sinjae_p * s_r) + (jaesaeng_p * j_r)
 
-                # 공식: Roll Weight = Garo * Dukki * Length * 0.0184
+                # 물리적 무게 산출
                 roll_weight = garo * dukki * length * 0.0184
                 total_pcs = clean_num(next((row[k] for k in row.index if '롤당' in k and ('수량' in k or '카운팅' in k)), 1))
                 b_per_r = total_pcs / box_pcs if box_pcs > 0 else 1
                 
-                # 제조원가(박스) 역산
-                mfg_cost = round(((roll_weight * unit_price) / b_per_r) + box_cost, 0) if b_per_r > 0 else 0
+                # [체질 개선 1] 불량 리스크 5% 반영
+                mfg_cost_raw = ((roll_weight * unit_price) / b_per_r) + box_cost if b_per_r > 0 else 0
+                mfg_cost = round(mfg_cost_raw * 1.05, 0) # 리스크 프리미엄 추가
                 
-                rec_p = round(mfg_cost / 0.8, 0) # 목표 마진 20%
+                # [체질 개선 2] 추천가 논리 통합 (마진 20% vs 롤당 수익 20,000원 중 높은 값)
+                min_roll_profit_goal = 20000 
+                rec_by_margin = mfg_cost / 0.8
+                rec_by_absolute = mfg_cost + (min_roll_profit_goal / b_per_r)
+                rec_p = round(max(rec_by_margin, rec_by_absolute), 0)
+                
                 roll_profit = (applied_p - mfg_cost) * b_per_r
                 
+                # [체질 개선 3] 경고 기준값 강화 (17,000원 적자 / 20,000원 주의)
                 status = "✅ 정상"
-                if roll_profit < 15000: status = "🚨 적자위험"
-                elif roll_profit > 50000: status = "⚠️ 고마진"
+                if roll_profit < 17000: status = "🚨 적자위험"
+                elif roll_profit < 20000: status = "⚠️ 수익주의"
+                elif roll_profit > 60000: status = "💰 고마진"
 
                 return pd.Series([sku, row.get('상품명',''), f"{roll_weight:.2f}kg", mfg_cost, applied_p, rec_p, (applied_p - mfg_cost), roll_profit, status],
                                  index=['SKU ID', '상품명', '롤무게', '제조원가', '적용납품가', '추천납품가', '상품당수익', '롤당수익', '방어선'])
             except:
                 return pd.Series([sku, '오류', '0kg', 0, 0, 0, 0, 0, '오류'], index=['SKU ID', '상품명', '롤무게', '제조원가', '적용납품가', '추천납품가', '상품당수익', '롤당수익', '방어선'])
 
-        # 6. 결과 리포트 및 다운로드
+        # 6. 결과 리포트 및 다운로드 (V3.9 UI 유지 + 경고색 추가)
         df_res = df_p.apply(calc_logic, axis=1)
-        st.subheader(f"📊 {sel_month} 마진 분석 결과")
+        st.subheader(f"📊 {sel_month} 마진 정밀 분석 결과")
         
         df_disp = df_res.copy()
         for c in ['제조원가', '적용납품가', '추천납품가', '상품당수익', '롤당수익']:
             df_disp[c] = df_disp[c].apply(lambda x: f"{int(x):,}원")
 
-        st.dataframe(df_disp.style.map(lambda v: 'color: red; font-weight: bold;' if '🚨' in str(v) else '', subset=['방어선']), use_container_width=True, hide_index=True)
+        # 스타일링: 적자(빨강)와 주의(노랑) 모두 표시
+        def highlight_status(v):
+            if '🚨' in str(v): return 'color: red; font-weight: bold;'
+            if '⚠️' in str(v): return 'color: #ffaa00; font-weight: bold;'
+            return ''
+
+        st.dataframe(df_disp.style.applymap(highlight_status, subset=['방어선']), use_container_width=True, hide_index=True)
 
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             df_res.to_excel(writer, index=False, sheet_name='분석결과')
-        st.download_button("📥 엑셀 리포트 다운로드", buffer.getvalue(), f"마진분석_{sel_month}.xlsx")
+        st.download_button("📥 엑셀 리포트 다운로드", buffer.getvalue(), f"마진분석_V4_{sel_month}.xlsx")
 
     except Exception as e:
         st.error(f"⚠️ 시스템 오류: {e}")
