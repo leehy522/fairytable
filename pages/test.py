@@ -8,7 +8,7 @@ import datetime
 import unicodedata
 
 def show_margin_calc():
-    st.title("🛡️ 페어리테이블 마진 정밀 시뮬레이터 (V4.1)")
+    st.title("🛡️ 페어리테이블 마진 정밀 시뮬레이터 (V4.2)")
     st.markdown("---")
 
     try:
@@ -63,10 +63,10 @@ def show_margin_calc():
         edit_df['적용납품가'] = edit_df['SKU ID'].apply(lambda x: clean_num(m_price_dict.get(x, 0)))
         edit_df['적용납품가'] = (edit_df['적용납품가'] * (1 + adj_pct/100)).round(0).astype(int)
         edit_df.set_index('SKU ID', inplace=True)
-        e_output = st.data_editor(edit_df, use_container_width=True, key="v41_sync")
+        e_output = st.data_editor(edit_df, use_container_width=True, key="v42_sync")
         p_map = e_output['적용납품가'].to_dict()
 
-        # 5. 분석 로직 (V4.0 논리 통합 버전)
+        # 5. 분석 로직 (V4.1 리스크 및 수익 하한선 유지)
         def calc_logic(row):
             try:
                 sku = row[sku_col]
@@ -105,9 +105,15 @@ def show_margin_calc():
             except:
                 return pd.Series([sku, '오류', '0kg', 0, 0, 0, 0, 0, '오류'], index=['SKU ID', '상품명', '롤무게', '제조원가', '적용납품가', '추천납품가', '상품당수익', '롤당수익', '방어선'])
 
-        # 6. 결과 출력 (applymap -> map 으로 수정)
+        # ---------------------------------------------------------
+        # [신규] 6. 고마진 우선순위 정렬 및 출력
+        # ---------------------------------------------------------
         df_res = df_p.apply(calc_logic, axis=1)
-        st.subheader(f"📊 {sel_month} 마진 정밀 분석 리포트")
+        
+        # 롤당수익 기준으로 내림차순 정렬 (높은 수익이 위로)
+        df_res = df_res.sort_values(by='롤당수익', ascending=False)
+        
+        st.subheader(f"📊 {sel_month} 마진 정밀 분석 (우선순위 정렬)")
         
         df_disp = df_res.copy()
         for c in ['제조원가', '적용납품가', '추천납품가', '상품당수익', '롤당수익']:
@@ -116,15 +122,15 @@ def show_margin_calc():
         def highlight_status(v):
             if '🚨' in str(v): return 'color: red; font-weight: bold;'
             if '⚠️' in str(v): return 'color: #ffaa00; font-weight: bold;'
+            if '💰' in str(v): return 'color: #00ff00; font-weight: bold;'
             return ''
 
-        # [수정 지점] applymap 대신 map 사용
         st.dataframe(df_disp.style.map(highlight_status, subset=['방어선']), use_container_width=True, hide_index=True)
 
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             df_res.to_excel(writer, index=False, sheet_name='분석결과')
-        st.download_button("📥 정밀 분석 리포트 다운로드", buffer.getvalue(), f"마진분석_V4_{sel_month}.xlsx")
+        st.download_button("📥 우선순위 리포트 다운로드", buffer.getvalue(), f"고마진_우선순위_{sel_month}.xlsx")
 
     except Exception as e:
         st.error(f"⚠️ 시스템 오류: {e}")
