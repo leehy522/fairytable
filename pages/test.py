@@ -15,8 +15,8 @@ def show_openmarket_calc():
     try:
         # 1. 데이터 원격 로드 및 시트 정의
         sheet_id = "13ldXPSVT7CFyNZRj-6Rlv3aXMqOhflquUtcZom5cJzU"
-        sheet_name_1 = quote("商品목록")      # "상품목록" URL 인코딩
-        sheet_name_2 = quote("原價기준")      # "원가기준" URL 인코딩
+        sheet_name_1 = quote("상품목록")      # "상품목록" URL 인코딩
+        sheet_name_2 = quote("원가기준")      # "원가기준" URL 인코딩
         sheet_name_3 = quote("네이버 판매가") # [추가] "네이버 판매가" 타겟 시트 URL 인코딩
         
         df_products = pd.read_csv(f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name_1}")
