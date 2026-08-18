@@ -64,15 +64,28 @@ def _convert_auto(src: pd.DataFrame) -> pd.DataFrame:
 st.title("📦 택배 송장 지능형 변환")
 st.info("💡 설정하신 한글/영문 컬럼명을 모두 검색하여 자동으로 변환합니다.")
 
-input_file = st.file_uploader("원본 주문 엑셀 선택", type=["xlsx", "xls","csv"])
+input_file = st.file_uploader("원본 주문 파일 선택", type=["xlsx", "xls", "csv"])
 
 if input_file:
     if st.button("🚀 변환 실행"):
         try:
-            # 엑셀 로드 시 컬럼명 공백 제거로 매칭률 극대화
-            src_df = pd.read_excel(input_file, dtype=str, engine='openpyxl')
+            # 파일 확장자에 따른 분기 처리
+            file_name = input_file.name.lower()
+
+            if file_name.endswith(".csv"):
+                # CSV 파일 처리 (인코딩 방어)
+                try:
+                    src_df = pd.read_csv(input_file, dtype=str, encoding="utf-8-sig")
+                except UnicodeDecodeError:
+                    input_file.seek(0)  # 파일 포인터 초기화
+                    src_df = pd.read_csv(input_file, dtype=str, encoding="cp949")
+            else:
+                # 엑셀 파일(.xlsx, .xls) 처리
+                src_df = pd.read_excel(input_file, dtype=str)
+
+            # 컬럼명 공백 제거
             src_df.columns = [str(c).strip() for c in src_df.columns]
-            
+
             final_df = _convert_auto(src_df)
 
             output = io.BytesIO()
@@ -86,7 +99,7 @@ if input_file:
                 file_name=f"요정비닐_송장_{datetime.now().strftime('%m%d_%H%M')}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
-            
+
             st.subheader("👀 변환 결과 미리보기")
             st.dataframe(final_df.head(), use_container_width=True)
 
