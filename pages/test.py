@@ -45,9 +45,10 @@ def _convert_auto(src: pd.DataFrame) -> pd.DataFrame:
     out["주문번호"] = get_val(_COLUMN_MAP["주문번호"])
     out["받는사람"] = get_val(_COLUMN_MAP["받는사람"])
     
-    # 2. 전화번호 처리 (+82를 0으로 치환하여 한국식 번호로 보정)
+    # 2. 💡 전화번호 처리 (0010 방어 로직 적용)
     phone_series = get_val(_COLUMN_MAP["전화번호1"])
-    phone_series = phone_series.str.replace(r'^\+82[-\s]*', '0', regex=True)
+    # +82 뒤에 공백/하이픈이 있거나 '0'이 여러 개 오더라도 무조건 하나의 '0'으로 치환
+    phone_series = phone_series.str.replace(r'^\+82[-\s]*0*', '0', regex=True)
     out["전화번호1"] = phone_series
     out["전화번호2"] = phone_series  # 2번은 1번을 복사
     
