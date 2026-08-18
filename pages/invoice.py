@@ -64,7 +64,7 @@ def _convert_auto(src: pd.DataFrame) -> pd.DataFrame:
 st.title("📦 택배 송장 지능형 변환")
 st.info("💡 설정하신 한글/영문 컬럼명을 모두 검색하여 자동으로 변환합니다.")
 
-input_file = st.file_uploader("원본 주문 엑셀 선택", type=["xlsx", "xls"])
+input_file = st.file_uploader("원본 주문 엑셀 선택", type=["xlsx", "xls","csv"])
 
 if input_file:
     if st.button("🚀 변환 실행"):
