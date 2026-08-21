@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import re
 import unicodedata
+import math  # 💡 올림 처리를 위한 수학 라이브러리 추가
 from datetime import datetime
 from urllib.parse import quote
 from auth import check_password
@@ -39,11 +40,10 @@ def show_production_order():
         # 맥(Mac) 등에서 발생하는 한글 자소 분리 현상 방지 및 공백 제거
         df_products.columns = [unicodedata.normalize('NFC', str(c)).strip() for c in df_products.columns]
         
-        # 💡 입력 단위 안내 텍스트 수정 (수량 기준)
         st.subheader("🏭 오늘의 생산 계획 입력 (단위: 수량)")
         production_data = {}
         
-        # 2. 상품 리스트 동적 입력 폼 생성 (3열 배치로 깔끔하게)
+        # 2. 상품 리스트 동적 입력 폼 생성 (3열 배치)
         cols = st.columns(3)
         for idx, row in df_products.iterrows():
             sku = str(row.get('SKU ID', f'unknown_{idx}'))
@@ -67,22 +67,23 @@ def show_production_order():
                 if qty > 0:
                     prod_row = df_products[df_products['SKU ID'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip() == sku].iloc[0]
                     
-                    # 💡 시트의 "상품 개수/1롤" 열 탐색 및 연동 (띄어쓰기 변동성 방어)
+                    # 시트의 "상품 개수/1롤" 열 탐색 및 연동
                     pcs_per_roll_col = next((k for k in prod_row.index if '상품' in k and '개수' in k and '1롤' in k), None)
                     
                     if pcs_per_roll_col:
                         pcs_per_roll = clean_num(prod_row[pcs_per_roll_col])
                     else:
-                        pcs_per_roll = 1  # 컬럼을 못 찾았을 경우의 안전장치
+                        pcs_per_roll = 1
                         st.warning(f"⚠️ '{prod_row.get('상품명')}'의 '상품 개수/1롤' 데이터를 시트에서 찾을 수 없어 임시로 1로 계산했습니다.")
                     
-                    # 필요 원단 롤 수 계산
-                    needed_rolls = qty / pcs_per_roll if pcs_per_roll > 0 else 0
+                    # 💡 필요 원단 롤 수 계산 (무조건 올림 처리 후 정수 변환)
+                    raw_needed_rolls = qty / pcs_per_roll if pcs_per_roll > 0 else 0
+                    needed_rolls = int(math.ceil(raw_needed_rolls)) 
                     
                     order_list.append({
                         "상품명": prod_row.get('상품명', '알 수 없음'),
-                        "목표 생산(수량)": qty,
-                        "필요 원단(롤)": round(needed_rolls, 2)
+                        "목표 생산(수량)": f"{qty:,}",  # 천 단위 콤마 추가로 가독성 향상
+                        "필요 원단(롤)": f"{needed_rolls} 롤"  # 소수점 제거 및 '롤' 텍스트 고정
                     })
                     total_rolls += needed_rolls
             
@@ -95,7 +96,8 @@ def show_production_order():
                 df_order = pd.DataFrame(order_list)
                 st.table(df_order)
                 
-                st.success(f"🔥 **총 투입 필요 원단: {round(total_rolls, 2)} 롤**")
+                # 총 투입 필요 원단도 정수(int)로 깔끔하게 출력
+                st.success(f"🔥 **총 투입 필요 원단: {total_rolls} 롤**")
                 st.info("🖨️ 키보드의 **[Ctrl + P]** 를 누르시면 현재 화면의 표와 수량만 A4 용지에 깔끔하게 인쇄됩니다.")
             else:
                 st.warning("생산할 수량을 1개 이상 입력해 주세요.")
