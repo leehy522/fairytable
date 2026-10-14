@@ -28,7 +28,6 @@ def parse_pdf_order(file):
                     
                     for i, h in enumerate(headers):
                         h_upper = h.upper()
-                        # 💡 '바코드' 제외, 오직 상품번호/SKU 기준
                         if '상품번호' in h_upper or 'SKU' in h_upper:
                             sku_idx = i
                         if '수량' in h_upper or 'QTY' in h_upper:
@@ -66,11 +65,10 @@ def parse_excel_order(file, ext):
         sku_col, qty_col, name_col = None, None, None
         cols = [str(c).replace('\n', '').strip().upper() for c in df.columns]
         
-        # 💡 1. 기준키 탐색 (바코드 원천 차단, '상품번호' 절대 우선)
+        # 1. 기준키 탐색 (바코드 원천 차단, '상품번호' 절대 우선)
         for target in ['상품번호', 'SKU', '상품 ID']:
             for i, c_str in enumerate(cols):
                 if target == c_str or target in c_str:
-                    # '상품바코드'라는 컬럼이 잡히는 것을 방지
                     if '바코드' not in c_str:
                         sku_col = df.columns[i]
                         break
@@ -170,9 +168,12 @@ def show_production_order():
                         qty = data['qty']
                         p_name = data['name']
                         
+                        # 💡 엑셀 데이터가 구글 시트와 일치할 때, 스트림릿 입력창 메모리에 '직접' 수량을 더함
                         if sku in valid_skus:
-                            current = st.session_state.saved_prod_data.get(sku, 0)
-                            st.session_state.saved_prod_data[sku] = current + qty
+                            widget_key = f"ui_prod_{sku}"
+                            current_val = st.session_state.get(widget_key, 0)
+                            st.session_state[widget_key] = current_val + qty
+                            st.session_state.saved_prod_data[sku] = st.session_state[widget_key]
                             matched_count += 1
                         else:
                             unmatched_list.append({
@@ -185,7 +186,7 @@ def show_production_order():
                         st.success(f"✅ 구글 시트와 일치하는 {matched_count}종의 상품 수량이 입력창에 채워졌습니다!")
                     
                     if unmatched_list:
-                        st.warning("⚠️ 엑셀에서 아래 '상품번호'를 정상적으로 찾았으나, 구글 시트 데이터와 일치하지 않아 연결하지 못했습니다.")
+                        st.warning("⚠️ 엑셀에서 아래 '상품번호'를 찾았으나, 구글 시트 데이터와 일치하지 않아 입력하지 못했습니다.")
                         st.info("🛠️ 해결 방법: 구글 시트 '상품목록' 탭의 [SKU ID] 열에 아래 표에 있는 '추출된 상품번호' 숫자들을 입력해 주세요.")
                         st.dataframe(pd.DataFrame(unmatched_list), use_container_width=True)
                 else:
@@ -204,13 +205,16 @@ def show_production_order():
                 all_skus.append(sku)
                 
                 col_idx = idx % 3
-                current_val = st.session_state.saved_prod_data.get(sku, 0)
+                widget_key = f"ui_prod_{sku}"
+                
+                # 💡 입력창 초기화 로직 수정 (value 속성 강제 주입 제거)
+                if widget_key not in st.session_state:
+                    st.session_state[widget_key] = st.session_state.saved_prod_data.get(sku, 0)
                 
                 cols[col_idx].number_input(
                     f"{name}", 
                     min_value=0, 
-                    value=current_val,
-                    key=f"ui_prod_{sku}"
+                    key=widget_key
                 )
 
             st.markdown("<br>", unsafe_allow_html=True)
@@ -266,7 +270,11 @@ def show_production_order():
                 st.rerun()
             
             if col2.button("🗑️ 모두 지우고 새로 작성"):
+                # 💡 완전 초기화를 위해 스트림릿 입력창 메모리까지 삭제
                 st.session_state.saved_prod_data = {}
+                for key in list(st.session_state.keys()):
+                    if key.startswith("ui_prod_"):
+                        del st.session_state[key]
                 st.session_state.prod_step = 1
                 st.rerun()
 
