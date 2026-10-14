@@ -9,15 +9,13 @@ from urllib.parse import quote
 from auth import check_password
 
 def clean_num(value):
-    """문자열에서 숫자만 추출하여 float 형태로 반환하는 헬퍼 함수"""
     if pd.isna(value) or value == '': 
         return 0
     s = re.sub(r'[^0-9.]', '', str(value))
     return pd.to_numeric(s, errors='coerce') if s else 0
 
 def parse_pdf_order(file):
-    """PDF 발주서에서 표 데이터를 추출하여 SKU별 수량을 합산하는 함수"""
-    sku_qty_map = {}
+    result_map = {}
     try:
         with pdfplumber.open(file) as pdf:
             for page in pdf.pages:
@@ -30,9 +28,10 @@ def parse_pdf_order(file):
                     
                     for i, h in enumerate(headers):
                         h_upper = h.upper()
-                        if 'SKU' in h_upper or '상품코드' in h_upper or '상품 ID' in h_upper:
+                        # 💡 '바코드' 제외, 오직 상품번호/SKU 기준
+                        if '상품번호' in h_upper or 'SKU' in h_upper:
                             sku_idx = i
-                        if '수량' in h_upper or 'QTY' in h_upper or '주문수량' in h_upper:
+                        if '수량' in h_upper or 'QTY' in h_upper:
                             qty_idx = i
                     
                     if sku_idx != -1 and qty_idx != -1:
@@ -43,15 +42,17 @@ def parse_pdf_order(file):
                                 qty_val = clean_num(row[qty_idx])
                                 
                                 if sku and qty_val > 0:
-                                    sku_qty_map[sku] = sku_qty_map.get(sku, 0) + int(qty_val)
-        return sku_qty_map
+                                    if sku in result_map:
+                                        result_map[sku]['qty'] += int(qty_val)
+                                    else:
+                                        result_map[sku] = {'qty': int(qty_val), 'name': 'PDF 발주 상품'}
+        return result_map
     except Exception as e:
         st.error(f"PDF 분석 중 오류가 발생했습니다: {e}")
         return {}
 
 def parse_excel_order(file, ext):
-    """엑셀/CSV 발주서에서 데이터를 추출하여 SKU별 수량을 합산하는 함수"""
-    sku_qty_map = {}
+    result_map = {}
     try:
         if ext == "csv":
             try:
@@ -62,37 +63,51 @@ def parse_excel_order(file, ext):
         else:
             df = pd.read_excel(file, dtype=str)
         
-        sku_col, qty_col = None, None
+        sku_col, qty_col, name_col = None, None, None
         cols = [str(c).replace('\n', '').strip().upper() for c in df.columns]
         
-        # 💡 1. SKU 컬럼 탐색 (우선순위: 바코드 > SKU > 상품코드 > 상품번호 순)
-        for target in ['바코드', 'SKU', '상품코드', '상품 ID', '상품번호']:
+        # 💡 1. 기준키 탐색 (바코드 원천 차단, '상품번호' 절대 우선)
+        for target in ['상품번호', 'SKU', '상품 ID']:
             for i, c_str in enumerate(cols):
-                if target in c_str:
-                    sku_col = df.columns[i]
-                    break
+                if target == c_str or target in c_str:
+                    # '상품바코드'라는 컬럼이 잡히는 것을 방지
+                    if '바코드' not in c_str:
+                        sku_col = df.columns[i]
+                        break
             if sku_col: break
             
-        # 💡 2. 수량 컬럼 탐색 (우선순위: 확정수량 > 발주수량 > 주문수량 > 수량 순)
+        # 2. 수량 탐색
         for target in ['확정수량', '발주수량', '주문수량', '수량', 'QTY']:
             for i, c_str in enumerate(cols):
                 if target in c_str:
                     qty_col = df.columns[i]
                     break
             if qty_col: break
+
+        # 3. 상품명 탐색 (진단 뷰어용)
+        for target in ['상품이름', '상품명', '제품명', '옵션명']:
+            for i, c_str in enumerate(cols):
+                if target in c_str:
+                    name_col = df.columns[i]
+                    break
+            if name_col: break
                 
         if sku_col and qty_col:
             for _, row in df.iterrows():
                 sku_val = str(row[sku_col]).strip()
                 sku = re.sub(r'\.0$', '', sku_val).strip()
                 qty_val = clean_num(row[qty_col])
+                name_val = str(row[name_col]).strip() if name_col else "이름 알 수 없음"
                 
                 if sku and qty_val > 0:
-                    sku_qty_map[sku] = sku_qty_map.get(sku, 0) + int(qty_val)
+                    if sku in result_map:
+                        result_map[sku]['qty'] += int(qty_val)
+                    else:
+                        result_map[sku] = {'qty': int(qty_val), 'name': name_val}
         else:
-            st.warning("⚠️ 엑셀 파일에서 '상품바코드/번호' 또는 '수량' 열을 찾을 수 없습니다. 양식을 확인해 주세요.")
+            st.warning("⚠️ 엑셀 파일에서 '상품번호' 또는 '수량' 열을 찾을 수 없습니다.")
             
-        return sku_qty_map
+        return result_map
     except Exception as e:
         st.error(f"엑셀 분석 중 오류가 발생했습니다: {e}")
         return {}
@@ -113,6 +128,7 @@ def show_production_order():
             footer { display: none !important; }
             h1 { display: none !important; } 
             .stAlert { display: none !important; }
+            [data-testid="stDataFrame"] { display: none !important; }
         }
         </style>
     """, unsafe_allow_html=True)
@@ -130,8 +146,8 @@ def show_production_order():
             st.title("📋 생산 작업 지시서 자동 생성")
             st.markdown("---")
             
-            st.subheader("📑 발주서 자동 인식 (PDF 및 엑셀)")
-            st.info("쿠팡, 네이버, 테무 발주서를 올리면 상품코드(SKU/바코드)와 수량을 읽어와 아래 입력창에 자동으로 채워줍니다.")
+            st.subheader("📑 발주서 자동 인식 (PDF/엑셀)")
+            st.info("발주서를 올리면 '상품번호'와 수량을 읽어와 아래 입력창에 자동으로 채워줍니다.")
             
             uploaded_file = st.file_uploader("발주서 파일 업로드", type=["pdf", "xlsx", "xls", "csv"])
             
@@ -146,19 +162,33 @@ def show_production_order():
                     
                 if extracted_data:
                     matched_count = 0
-                    for sku, qty in extracted_data.items():
-                        # 추출된 SKU가 구글 시트 데이터(df_products)에 존재하는지 유효성 검증
-                        if sku in df_products['SKU ID'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().values:
+                    unmatched_list = []
+                    
+                    valid_skus = df_products['SKU ID'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().tolist()
+                    
+                    for sku, data in extracted_data.items():
+                        qty = data['qty']
+                        p_name = data['name']
+                        
+                        if sku in valid_skus:
                             current = st.session_state.saved_prod_data.get(sku, 0)
                             st.session_state.saved_prod_data[sku] = current + qty
                             matched_count += 1
+                        else:
+                            unmatched_list.append({
+                                "추출된 상품번호": sku,
+                                "발주서 상품명": p_name,
+                                "주문 수량": qty
+                            })
                     
                     if matched_count > 0:
-                        st.success(f"✅ 구글 시트와 일치하는 {matched_count}종의 상품 수량이 성공적으로 입력되었습니다!")
-                        st.rerun()  
-                    else:
-                        st.warning("⚠️ 파일에서 데이터를 추출했으나, 구글 시트 '상품목록'의 SKU ID와 일치하는 항목이 없습니다. (바코드/SKU 값이 동일한지 확인해주세요)")
-                elif file_ext == "pdf":
+                        st.success(f"✅ 구글 시트와 일치하는 {matched_count}종의 상품 수량이 입력창에 채워졌습니다!")
+                    
+                    if unmatched_list:
+                        st.warning("⚠️ 엑셀에서 아래 '상품번호'를 정상적으로 찾았으나, 구글 시트 데이터와 일치하지 않아 연결하지 못했습니다.")
+                        st.info("🛠️ 해결 방법: 구글 시트 '상품목록' 탭의 [SKU ID] 열에 아래 표에 있는 '추출된 상품번호' 숫자들을 입력해 주세요.")
+                        st.dataframe(pd.DataFrame(unmatched_list), use_container_width=True)
+                else:
                     st.warning("⚠️ 표 데이터를 찾지 못했습니다.")
 
             st.markdown("---")
