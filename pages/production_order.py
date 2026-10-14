@@ -49,6 +49,48 @@ def parse_pdf_order(file):
         st.error(f"PDF 분석 중 오류가 발생했습니다: {e}")
         return {}
 
+def parse_excel_order(file, ext):
+    """엑셀/CSV 발주서에서 데이터를 추출하여 SKU별 수량을 합산하는 함수"""
+    sku_qty_map = {}
+    try:
+        # 파일 확장자에 따른 로드
+        if ext == "csv":
+            try:
+                df = pd.read_csv(file, dtype=str, encoding="utf-8-sig")
+            except UnicodeDecodeError:
+                file.seek(0)
+                df = pd.read_csv(file, dtype=str, encoding="cp949")
+        else:
+            df = pd.read_excel(file, dtype=str)
+        
+        # 헤더(컬럼명)에서 SKU와 수량 열을 유연하게 탐색
+        sku_col, qty_col = None, None
+        for col in df.columns:
+            c_str = str(col).replace('\n', '').strip().upper()
+            
+            # 제공해주신 엑셀 파일의 '상품바코드', '상품번호' 등을 우선 스캔
+            if not sku_col and any(x in c_str for x in ['바코드', '상품코드', 'SKU', '상품 ID', '상품번호']):
+                sku_col = col
+            # '발주수량', '확정수량' 등을 스캔
+            if not qty_col and any(x in c_str for x in ['발주수량', '주문수량', '확정수량', '수량', 'QTY']):
+                qty_col = col
+                
+        if sku_col and qty_col:
+            for _, row in df.iterrows():
+                sku_val = str(row[sku_col]).strip()
+                sku = re.sub(r'\.0$', '', sku_val).strip()
+                qty_val = clean_num(row[qty_col])
+                
+                if sku and qty_val > 0:
+                    sku_qty_map[sku] = sku_qty_map.get(sku, 0) + int(qty_val)
+        else:
+            st.warning("⚠️ 엑셀 파일에서 '상품바코드/번호' 또는 '발주수량' 열을 찾을 수 없습니다. 양식을 확인해 주세요.")
+            
+        return sku_qty_map
+    except Exception as e:
+        st.error(f"엑셀 분석 중 오류가 발생했습니다: {e}")
+        return {}
+
 def show_production_order():
     # 💡 화면 전환 및 데이터 유지를 위한 상태 변수 초기화
     if "prod_step" not in st.session_state:
@@ -62,9 +104,11 @@ def show_production_order():
         @media print {
             [data-testid="stSidebar"] { display: none !important; }
             .stButton { display: none !important; }
+            .stFileUploader { display: none !important; }
             header { display: none !important; }
             footer { display: none !important; }
-            h1 { display: none !important; } /* 타이틀 숨김 */
+            h1 { display: none !important; } 
+            .stAlert { display: none !important; }
         }
         </style>
     """, unsafe_allow_html=True)
@@ -83,24 +127,34 @@ def show_production_order():
             st.title("📋 생산 작업 지시서 자동 생성")
             st.markdown("---")
             
-            st.subheader("📑 PDF 발주서 자동 인식 (선택 사항)")
-            uploaded_pdf = st.file_uploader("발주서 PDF 파일 업로드", type=["pdf"])
+            st.subheader("📑 발주서 자동 인식 (PDF 및 엑셀)")
+            st.info("발주서(PDF, 엑셀, CSV)를 올리면 상품코드(SKU/바코드)와 수량을 읽어와 아래 입력창에 자동으로 채워줍니다.")
             
-            if uploaded_pdf and st.button("🔄 PDF 데이터 불러오기"):
-                extracted_data = parse_pdf_order(uploaded_pdf)
+            # 💡 PDF 뿐만 아니라 xlsx, xls, csv 파일도 업로드 가능하게 수정
+            uploaded_file = st.file_uploader("발주서 파일 업로드", type=["pdf", "xlsx", "xls", "csv"])
+            
+            if uploaded_file and st.button("🔄 데이터 불러오기"):
+                extracted_data = {}
+                file_ext = uploaded_file.name.split('.')[-1].lower()
+                
+                # 확장자에 따라 분석 엔진 분기 처리
+                if file_ext == "pdf":
+                    extracted_data = parse_pdf_order(uploaded_file)
+                elif file_ext in ["xlsx", "xls", "csv"]:
+                    extracted_data = parse_excel_order(uploaded_file, file_ext)
+                    
                 if extracted_data:
                     for sku, qty in extracted_data.items():
                         current = st.session_state.saved_prod_data.get(sku, 0)
                         st.session_state.saved_prod_data[sku] = current + qty
-                    st.success("✅ PDF 수량이 성공적으로 입력되었습니다!")
-                    st.rerun()  # 화면을 즉시 새로고침하여 숫자를 폼에 반영
-                else:
+                    st.success(f"✅ 총 {len(extracted_data)}종의 상품 수량이 성공적으로 입력되었습니다!")
+                    st.rerun()  # 화면 새로고침
+                elif file_ext == "pdf":
                     st.warning("⚠️ 표 데이터를 찾지 못했습니다.")
 
             st.markdown("---")
             st.subheader("🏭 오늘의 생산 계획 입력 (단위: 수량)")
             
-            # 입력 폼 생성 (저장된 값이 있으면 불러오기)
             cols = st.columns(3)
             all_skus = []
             
@@ -113,7 +167,6 @@ def show_production_order():
                 col_idx = idx % 3
                 current_val = st.session_state.saved_prod_data.get(sku, 0)
                 
-                # UI 입력을 위한 임시 위젯
                 cols[col_idx].number_input(
                     f"{name}", 
                     min_value=0, 
@@ -121,13 +174,11 @@ def show_production_order():
                     key=f"ui_prod_{sku}"
                 )
 
-            # 지시서 생성 버튼
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("🚀 지시서 생성 및 인쇄 화면으로 이동", type="primary"):
                 order_list = []
                 total_rolls = 0
                 
-                # 사용자가 입력한 숫자를 영구 저장
                 for sku in all_skus:
                     val = st.session_state[f"ui_prod_{sku}"]
                     st.session_state.saved_prod_data[sku] = val
@@ -150,13 +201,13 @@ def show_production_order():
                 if order_list:
                     st.session_state.order_list = order_list
                     st.session_state.total_rolls = total_rolls
-                    st.session_state.prod_step = 2  # 인쇄 화면으로 이동
+                    st.session_state.prod_step = 2 
                     st.rerun()
                 else:
                     st.warning("생산할 수량을 1개 이상 입력해 주세요.")
 
         # -----------------------------------------------------------
-        # [STEP 2] 인쇄 전용 화면 (입력창 사라짐)
+        # [STEP 2] 인쇄 전용 화면
         # -----------------------------------------------------------
         elif st.session_state.prod_step == 2:
             st.subheader("📄 일일 생산 작업 지시서")
@@ -171,12 +222,10 @@ def show_production_order():
             st.markdown("<br>", unsafe_allow_html=True)
             col1, col2 = st.columns(2)
             
-            # 다시 입력 화면으로 돌아가기 (입력한 숫자는 보존됨)
             if col1.button("🔄 내용 수정하기"):
                 st.session_state.prod_step = 1
                 st.rerun()
             
-            # 입력 초기화
             if col2.button("🗑️ 모두 지우고 새로 작성"):
                 st.session_state.saved_prod_data = {}
                 st.session_state.prod_step = 1
