@@ -7,7 +7,7 @@ import pandas as pd
 
 # [설정] 1단계에서 발급받은 구글 시트 CSV 웹 게시 링크를 여기에 넣습니다.
 # (웹에 게시 링크를 아직 안 만드셨다면 아래 기본 퍼블릭 링크나 시트 링크가 작동합니다)
-SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/13ldXPSVT7CFyNZRj-6Rlv3aXMqOhflquUtcZom5cJzU/edit?usp=sharing"
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/13ldXPSVT7CFyNZRj-6Rlv3aXMqOhflquUtcZom5cJzU/export?format=csv&gid=sharing"
 
 def get_sheet_data():
     """
