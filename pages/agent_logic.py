@@ -11,10 +11,16 @@ SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/13ldXPSVT7CFyNZRj-6Rlv3a
 
 def get_sheet_data():
     """
-    구글 스프레드시트 데이터를 실시간으로 가져와 데이터프레임으로 변환합니다.
+    구글 스프레드시트 데이터를 토큰 에러 없이 안전하게 실시간 로드합니다.
     """
     try:
-        df = pd.read_csv(SHEET_CSV_URL)
+        # on_bad_lines='skip': 형식이 깨진 불일치 행은 건너뛰어 파이프라인 중단 방지
+        # engine='python': 파이썬 C엔진 대신 유연한 파이썬 엔진을 사용하여 따옴표/구분자 오류 방지
+        df = pd.read_csv(
+            SHEET_CSV_URL, 
+            on_bad_lines='skip', 
+            engine='python'
+        )
         return df.to_string(index=False)
     except Exception as e:
         return f"시트 데이터 로드 실패: {e}"
