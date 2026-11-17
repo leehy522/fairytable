@@ -3,23 +3,29 @@ import streamlit as st
 import time
 
 def get_chat_session(api_key):
+    """
+    시스템 고도화 및 코드 진단을 위한 시니어 소프트웨어 아키텍트 페르소나 설정
+    """
     if "gemini_client" not in st.session_state or st.session_state.get("current_api_key") != api_key:
         try:
             client = genai.Client(api_key=api_key)
             st.session_state.gemini_client = client
             st.session_state.current_api_key = api_key
             
+            # 고도화 에이전트 전용 시스템 인스트럭션
             system_instruction = (
-                "당신은 요정비닐(Fairy Dream Co., Ltd.)의 스마트 팩토리 ERP AI 에이전트입니다. "
-                "대표님과 실시간으로 대화하며 발주서 데이터 분석, 상품번호 대조, 재고 검증 및 업무 지시를 수행합니다. "
-                "이전 대화의 맥락과 내용을 정확히 기억하고 이어서 답변해주세요."
+                "당신은 요정비닐(Fairy Dream Co., Ltd.)의 스마트 팩토리 ERP 시스템을 진단하고 "
+                "효율을 극한으로 고도화하는 수석 시니어 시스템 아키텍트이자 AI 에이전트입니다. "
+                "Streamlit 대시보드 구조, 파이썬 코드 최적화, 업무 프로세스 자동화, 에러 핸들링, "
+                "그리고 UI/UX 개선 방안에 대해 전문적이고 실효성 있는 코드와 솔루션을 제시합니다. "
+                "대표님이 제공하는 코드나 시스템 상황을 면밀히 분석하고 효율적인 개선안을 도출해주세요."
             )
             
             chat = client.chats.create(
                 model='gemini-3.8-flash',
                 config={
                     "system_instruction": system_instruction,
-                    "temperature": 0.3,
+                    "temperature": 0.2, # 코드 분석의 정확도를 높이기 위해 낮게 설정
                 }
             )
             st.session_state.gemini_chat_session = chat
@@ -31,6 +37,9 @@ def get_chat_session(api_key):
 
 
 def analyze_order_data(api_key, user_prompt):
+    """
+    시스템 점검 및 고도화 관련 질문/코드 리뷰 요청을 처리하는 함수
+    """
     if "init_error" in st.session_state and st.session_state.init_error:
         err = st.session_state.init_error
         st.session_state.init_error = None
@@ -40,8 +49,6 @@ def analyze_order_data(api_key, user_prompt):
     if not chat_session:
         return "❌ 제미나이 API 연결 실패: API 키를 다시 확인해주세요."
         
-    # 지수 백오프(Exponential Backoff) 재시도 로직
-    # 시도 횟수가 늘어날수록 대기 시간을 2초 -> 4초로 늘려 안정성 확보
     max_retries = 3
     wait_time = 2
     
@@ -53,7 +60,7 @@ def analyze_order_data(api_key, user_prompt):
             error_str = str(e)
             if ("503" in error_str or "UNAVAILABLE" in error_str) and attempt < max_retries - 1:
                 time.sleep(wait_time)
-                wait_time *= 2  # 대기 시간 배증
+                wait_time *= 2
                 continue
             else:
                 return f"❌ [API 통신 중 에러 발생]: {error_str}"
