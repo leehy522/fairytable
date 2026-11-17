@@ -91,16 +91,13 @@ def generate_and_create_pr(api_key, github_token, task_description):
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         new_branch = f"feature/ai-architect-{timestamp}"
 
-        # develop 브랜치 기준 헤드 가져오기
         base_ref = repo.get_git_ref("heads/develop")
         repo.create_git_ref(ref=f"refs/heads/{new_branch}", sha=base_ref.object.sha)
 
-        # 새 파일 생성 및 커밋
         file_path = f"pages/optimized_task_{timestamp}.py"
         commit_msg = f"🤖 AI System Architect: 시스템 고도화 코드 자동 생성 ({file_path})"
         repo.create_file(file_path, commit_msg, new_code, branch=new_branch)
 
-        # PR 생성
         pr_title = f"🤖 [AI Architect PR] 시스템 고도화 요청 - {timestamp}"
         pr_body = f"### 📝 작업 지시사항\n> {task_description}\n\nAI 시스템 아키텍트가 웹 대시보드 자율 코딩 기능을 통해 생성한 코드 개선 PR입니다."
         
