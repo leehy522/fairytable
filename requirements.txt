@@ -10,3 +10,4 @@ st-gsheets-connection
 pdfplumber
 google-genai
 PyGithub
+plotly
