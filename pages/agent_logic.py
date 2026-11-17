@@ -3,10 +3,26 @@ from github import Github
 import streamlit as st
 import time
 import datetime
+import pandas as pd
+
+# [설정] 1단계에서 발급받은 구글 시트 CSV 웹 게시 링크를 여기에 넣습니다.
+# (웹에 게시 링크를 아직 안 만드셨다면 아래 기본 퍼블릭 링크나 시트 링크가 작동합니다)
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/13ldXPSVT7CFyNZRj-6Rlv3aXMqOhflquUtcZom5cJzU/edit?usp=sharing"
+
+def get_sheet_data():
+    """
+    구글 스프레드시트 데이터를 실시간으로 가져와 데이터프레임으로 변환합니다.
+    """
+    try:
+        df = pd.read_csv(SHEET_CSV_URL)
+        return df.to_string(index=False)
+    except Exception as e:
+        return f"시트 데이터 로드 실패: {e}"
+
 
 def get_chat_session(api_key):
     """
-    요정비닐 시스템 고도화 및 코드 진단, 구글 시트 데이터 분석을 위한 아키텍트 세션 초기화
+    요정비닐 시스템 고도화 및 실시간 구글 시트 연동 아키텍트 세션 초기화
     """
     if "gemini_client" not in st.session_state or st.session_state.get("current_api_key") != api_key:
         try:
@@ -18,7 +34,7 @@ def get_chat_session(api_key):
                 "당신은 요정비닐(Fairy Dream Co., Ltd.)의 스마트 팩토리 ERP 시스템을 진단하고 "
                 "효율을 극한으로 고도화하는 수석 시니어 시스템 아키텍트이자 AI 에이전트입니다. "
                 "Streamlit 대시보드 구조, 파이썬 코드 최적화, 업무 프로세스 자동화뿐만 아니라, "
-                "연동된 구글 시트(상품 목록 및 재고 데이터)를 기반으로 상품 정보, 가격, 수익률 등을 정확하게 분석하고 안내합니다."
+                "연동된 구글 시트(상품 목록 및 재고 데이터)의 실시간 내용을 기반으로 상품 정보, 가격, 수익률 등을 정확하게 분석하고 안내합니다."
             )
             
             chat = client.chats.create(
@@ -38,7 +54,7 @@ def get_chat_session(api_key):
 
 def analyze_order_data(api_key, user_prompt):
     """
-    시트 데이터 컨텍스트를 포함하여 시스템 점검 및 상품 데이터 분석을 수행하는 함수
+    구글 시트의 최신 실시간 데이터를 프롬프트에 주입하여 에이전트가 답변을 생성하도록 합니다.
     """
     if "init_error" in st.session_state and st.session_state.init_error:
         err = st.session_state.init_error
@@ -49,26 +65,22 @@ def analyze_order_data(api_key, user_prompt):
     if not chat_session:
         return "❌ 제미나이 API 연결 실패: API 키를 다시 확인해주세요."
         
-    # 구글 시트(inventory)의 핵심 상품 목록 및 데이터 컨텍스트 주입
-    sheet_context = (
-        "\n\n[현재 연동된 요정비닐 상품목록 데이터 참고사항]:\n"
-        "- 주요 품목: 요정비닐 투명/유백/검은색 (100L, 60L, 40L, 20L 등), 뽑아쓰는 재활용 분리수거 비닐봉투\n"
-        "- 주요 데이터 항목: SKU ID, 상품명, 목표 수익률, 신재/재생 비율, 가로/세로/두께, 쿠팡 로켓 납품가 및 판매가, 쿠팡 수익 및 수익율\n"
-        "- 대표 SKU 예시:\n"
-        "  * 29558294: 페어리테이블 뽑아쓰는 요정비닐 투명 100L 100매 (쿠팡 판매가 12,181원, 수익율 42.46%)\n"
-        "  * 32711887: 페어리테이블 뽑아쓰는 요정비닐 검은색 100L 100매 (쿠팡 판매가 12,181원, 수익율 33.51%)\n"
-        "  * 32058610: 요정비닐 뽑아쓰는 재활용 분리수거 비닐봉투 20리터 (쿠팡 판매가 6,545원, 수익율 41.94%)\n"
-        "사용자가 특정 상품의 재고, 가격, 수익률 등을 물어보면 위 데이터와 시트 내용을 기반으로 상세히 답변해주세요."
+    # 구글 시트에서 최신 데이터를 실시간으로 긁어옴
+    live_sheet_data = get_sheet_data()
+    
+    context_prompt = (
+        f"{user_prompt}\n\n"
+        f"--- [참고: 구글 스프레드시트 실시간 상품 및 재고 데이터] ---\n"
+        f"{live_sheet_data}\n"
+        f"--------------------------------------------------------"
     )
-
-    full_prompt = user_prompt + sheet_context
 
     max_retries = 3
     wait_time = 2
     
     for attempt in range(max_retries):
         try:
-            response = chat_session.send_message(full_prompt)
+            response = chat_session.send_message(context_prompt)
             return response.text
         except Exception as e:
             error_str = str(e)
