@@ -2,14 +2,8 @@ from google import genai
 import streamlit as st
 
 def get_chat_session(api_key):
-    """
-    제미나이 클라이언트와 채팅 세션을 session_state에 함께 저장하여 
-    클라이언트가 닫히지 않고 대화 맥락이 유지되도록 합니다.
-    """
-    # 세션에 클라이언트가 없거나 API 키가 변경된 경우에만 새로 생성
     if "gemini_client" not in st.session_state or st.session_state.get("current_api_key") != api_key:
         try:
-            # 클라이언트 자체를 session_state에 보관하여 세션 만료 및 닫힘 방지
             client = genai.Client(api_key=api_key)
             st.session_state.gemini_client = client
             st.session_state.current_api_key = api_key
@@ -29,22 +23,28 @@ def get_chat_session(api_key):
             )
             st.session_state.gemini_chat_session = chat
         except Exception as e:
+            # 초기화 실패 시 에러를 세션에 담음
+            st.session_state.init_error = str(e)
             return None
             
-    return st.session_state.gemini_chat_session
+    return st.session_state.get("gemini_chat_session")
 
 
 def analyze_order_data(api_key, user_prompt):
-    """
-    유지되는 클라이언트 세션을 통해 메시지를 전송하고 답변을 받아옵니다.
-    """
     try:
+        # 만약 초기화 에러가 있다면 즉시 반환
+        if "init_error" in st.session_state and st.session_state.init_error:
+            err = st.session_state.init_error
+            st.session_state.init_error = None # 에러 출력 후 초기화
+            return f"❌ [초기화 실패 에러]: {err}"
+
         chat_session = get_chat_session(api_key)
         if not chat_session:
-            return "❌ 제미나이 API 연결 실패: API 키를 확인해주세요."
+            return "❌ 제미나이 API 연결 실패: API 키를 다시 확인해주세요."
             
+        # 메시지 전송
         response = chat_session.send_message(user_prompt)
         return response.text
         
     except Exception as e:
-        return f"❌ AI 대화 중 오류 발생: {e}"
+        return f"❌ [API 통신 중 에러 발생]: {str(e)}"
