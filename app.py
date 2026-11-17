@@ -14,7 +14,7 @@ if not check_password():
 # 4. 강제 라우팅 메뉴 구성
 MENU_MAP = {
     "🏠 홈": None,
-    "🤖 AI 시스템 아키텍트": "ai_architect",  # AI 아키텍트 전용 메뉴
+    "🤖 AI 시스템 아키텍트": "ai_architect",
     "🏷️ 상품 실시간 현황": "product_status.py",
     "📦 택배 송장 변환": "invoice.py",
     "🏭 원가 시뮬레이터": "cost_simulator.py",
@@ -23,14 +23,29 @@ MENU_MAP = {
     "🏛️ 나라장터 입찰": "narajangte.py",
 }
 
-# 5. 강제 사이드바 렌더링 (Gemini Key 및 GitHub Token 입력 추가)
+# 5. 강제 사이드바 렌더링 (시크릿 자동 연동 + 수동 입력 지원)
 st.sidebar.title("🚀 요정비닐 관리자")
 st.sidebar.markdown(f"**접속자:** 관리자")
 st.sidebar.divider()
 
 st.sidebar.subheader("🔑 API 및 깃허브 인증")
-gemini_api_key = st.sidebar.text_input("Gemini API Key (AIza...)", type="password", help="유료 전환된 제미나이 API 키를 입력하세요.")
-github_token = st.sidebar.text_input("GitHub Token (ghp_...)", type="password", help="코드 자동 커밋 및 PR 생성용 토큰")
+
+# secrets.toml에서 키를 먼저 탐색하고, 없으면 빈 문자열 반환
+default_gemini_key = st.secrets.get("GEMINI_API_KEY", "")
+default_github_token = st.secrets.get("GITHUB_TOKEN", "")
+
+gemini_api_key = st.sidebar.text_input(
+    "Gemini API Key (AIza...)", 
+    type="password", 
+    value=default_gemini_key,
+    help="secrets.toml에 설정된 경우 자동으로 로드됩니다."
+)
+github_token = st.sidebar.text_input(
+    "GitHub Token (ghp_...)", 
+    type="password", 
+    value=default_github_token,
+    help="secrets.toml에 설정된 경우 자동으로 로드됩니다."
+)
 
 st.sidebar.divider()
 selection = st.sidebar.radio("메뉴 이동", list(MENU_MAP.keys()))
@@ -69,7 +84,6 @@ elif selection == "🤖 AI 시스템 아키텍트":
     st.title("🤖 요정비닐 AI 시스템 아키텍트 & 자율 코딩 센터")
     st.caption("대화형 코드 진단부터 깃허브 자율 PR 상신까지 웹에서 원클릭으로 제어합니다.")
     
-    # 탭으로 기능 분리 (탭1: 실시간 챗봇, 탭2: 자율 코딩 및 PR 생성)
     sub_tab1, sub_tab2 = st.tabs(["💬 1:1 아키텍트 챗봇", "🚀 자율 코딩 & 깃허브 PR 상신"])
     
     # [탭 1] 실시간 챗봇
@@ -87,7 +101,7 @@ elif selection == "🤖 AI 시스템 아키텍트":
 
         if prompt := st.chat_input("아키텍트에게 문의할 내용을 입력하세요..."):
             if not gemini_api_key:
-                st.error("좌측 사이드바에 Gemini API Key를 먼저 입력해 주세요!")
+                st.error("사이드바에 Gemini API Key를 입력하거나 secrets.toml을 설정해 주세요!")
             else:
                 st.session_state.messages.append({"role": "user", "content": prompt})
                 with st.chat_message("user"):
@@ -111,7 +125,7 @@ elif selection == "🤖 AI 시스템 아키텍트":
         
         if st.button("🚀 AI 자율 코딩 및 PR 생성 실행", type="primary"):
             if not gemini_api_key or not github_token:
-                st.error("좌측 사이드바에 **Gemini API Key**와 **GitHub Token**을 모두 입력해 주세요!")
+                st.error("사이드바에 **Gemini API Key**와 **GitHub Token**이 모두 입력되어 있는지 확인해 주세요!")
             else:
                 with st.spinner("AI 아키텍트가 코드를 작성하고 깃허브에 PR을 올리는 중입니다..."):
                     success, result_msg, generated_code = generate_and_create_pr(
