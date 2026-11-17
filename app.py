@@ -4,17 +4,25 @@ from auth import check_password
 import importlib.util
 from pages.agent_logic import generate_and_create_pr, analyze_order_data
 
-# 2. 페이지 기본 설정
+# 1. 페이지 기본 설정
 st.set_page_config(page_title="요정비닐 통합 시스템", page_icon="🏭", layout="wide")
 
-# 3. 보안 인증 체크
+# 2. 보안 인증 체크
 if not check_password():
+    st.stop()
+
+# 3. secrets.toml에서 API 키와 깃허브 토큰을 자동 로드 (수동 입력 불필요)
+try:
+    gemini_api_key = st.secrets["GEMINI_API_KEY"]
+    github_token = st.secrets["GITHUB_TOKEN"]
+except Exception as e:
+    st.error("❌ `secrets.toml` 파일에 `GEMINI_API_KEY` 또는 `GITHUB_TOKEN`이 설정되지 않았습니다. 설정을 확인해주세요!")
     st.stop()
 
 # 4. 강제 라우팅 메뉴 구성
 MENU_MAP = {
     "🏠 홈": None,
-    "🤖 AI 시스템 아키텍트": "ai_architect",  # AI 아키텍트 전용 메뉴
+    "🤖 AI 시스템 아키텍트": "ai_architect",
     "🏷️ 상품 실시간 현황": "product_status.py",
     "📦 택배 송장 변환": "invoice.py",
     "🏭 원가 시뮬레이터": "cost_simulator.py",
@@ -23,14 +31,12 @@ MENU_MAP = {
     "🏛️ 나라장터 입찰": "narajangte.py",
 }
 
-# 5. 강제 사이드바 렌더링 (Gemini Key 및 GitHub Token 입력 추가)
+# 5. 간소화된 사이드바 렌더링 (보안 상태 표시)
 st.sidebar.title("🚀 요정비닐 관리자")
 st.sidebar.markdown(f"**접속자:** 관리자")
 st.sidebar.divider()
 
-st.sidebar.subheader("🔑 API 및 깃허브 인증")
-gemini_api_key = st.sidebar.text_input("Gemini API Key (AIza...)", type="password", help="유료 전환된 제미나이 API 키를 입력하세요.")
-github_token = st.sidebar.text_input("GitHub Token (ghp_...)", type="password", help="코드 자동 커밋 및 PR 생성용 토큰")
+st.sidebar.success("🔑 시크릿 보안 인증 완료\n(API 키 & 깃허브 토큰 연동됨)")
 
 st.sidebar.divider()
 selection = st.sidebar.radio("메뉴 이동", list(MENU_MAP.keys()))
@@ -69,7 +75,6 @@ elif selection == "🤖 AI 시스템 아키텍트":
     st.title("🤖 요정비닐 AI 시스템 아키텍트 & 자율 코딩 센터")
     st.caption("대화형 코드 진단부터 깃허브 자율 PR 상신까지 웹에서 원클릭으로 제어합니다.")
     
-    # 탭으로 기능 분리 (탭1: 실시간 챗봇, 탭2: 자율 코딩 및 PR 생성)
     sub_tab1, sub_tab2 = st.tabs(["💬 1:1 아키텍트 챗봇", "🚀 자율 코딩 & 깃허브 PR 상신"])
     
     # [탭 1] 실시간 챗봇
@@ -86,18 +91,15 @@ elif selection == "🤖 AI 시스템 아키텍트":
                 st.markdown(msg["content"])
 
         if prompt := st.chat_input("아키텍트에게 문의할 내용을 입력하세요..."):
-            if not gemini_api_key:
-                st.error("좌측 사이드바에 Gemini API Key를 먼저 입력해 주세요!")
-            else:
-                st.session_state.messages.append({"role": "user", "content": prompt})
-                with st.chat_message("user"):
-                    st.markdown(prompt)
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            with st.chat_message("user"):
+                st.markdown(prompt)
 
-                with st.chat_message("ai"):
-                    with st.spinner("아키텍트가 분석 중입니다..."):
-                        ai_response = analyze_order_data(gemini_api_key, prompt)
-                        st.markdown(ai_response)
-                        st.session_state.messages.append({"role": "model", "content": ai_response})
+            with st.chat_message("ai"):
+                with st.spinner("아키텍트가 분석 중입니다..."):
+                    ai_response = analyze_order_data(gemini_api_key, prompt)
+                    st.markdown(ai_response)
+                    st.session_state.messages.append({"role": "model", "content": ai_response})
 
     # [탭 2] 자율 코딩 및 깃허브 PR 상신
     with sub_tab2:
@@ -110,22 +112,19 @@ elif selection == "🤖 AI 시스템 아키텍트":
         )
         
         if st.button("🚀 AI 자율 코딩 및 PR 생성 실행", type="primary"):
-            if not gemini_api_key or not github_token:
-                st.error("좌측 사이드바에 **Gemini API Key**와 **GitHub Token**을 모두 입력해 주세요!")
-            else:
-                with st.spinner("AI 아키텍트가 코드를 작성하고 깃허브에 PR을 올리는 중입니다..."):
-                    success, result_msg, generated_code = generate_and_create_pr(
-                        gemini_api_key, github_token, task_input
-                    )
+            with st.spinner("AI 아키텍트가 코드를 작성하고 깃허브에 PR을 올리는 중입니다..."):
+                success, result_msg, generated_code = generate_and_create_pr(
+                    gemini_api_key, github_token, task_input
+                )
+                
+                if success:
+                    st.success("🎉 AI 아키텍트가 성공적으로 코드를 작성하고 결재 서류(PR)를 올렸습니다!")
+                    st.markdown(f"👉 **생성된 깃허브 PR 확인하기:** [바로 가기 링크]({result_msg})")
                     
-                    if success:
-                        st.success("🎉 AI 아키텍트가 성공적으로 코드를 작성하고 결재 서류(PR)를 올렸습니다!")
-                        st.markdown(f"👉 **생성된 깃허브 PR 확인하기:** [바로 가기 링크]({result_msg})")
-                        
-                        with st.expander("📝 에이전트가 작성한 실무 코드 보기"):
-                            st.code(generated_code, language="python")
-                    else:
-                        st.error(f"❌ 깃허브 PR 생성 실패: {result_msg}")
+                    with st.expander("📝 에이전트가 작성한 실무 코드 보기"):
+                        st.code(generated_code, language="python")
+                else:
+                    st.error(f"❌ 깃허브 PR 생성 실패: {result_msg}")
 
 else:
     load_page(MENU_MAP[selection])
