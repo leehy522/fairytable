@@ -5,31 +5,17 @@ import time
 import datetime
 import pandas as pd
 
-# [설정] 1단계에서 발급받은 구글 시트 CSV 웹 게시 링크를 여기에 넣습니다.
-# (웹에 게시 링크를 아직 안 만드셨다면 아래 기본 퍼블릭 링크나 시트 링크가 작동합니다)
-SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/13ldXPSVT7CFyNZRj-6Rlv3aXMqOhflquUtcZom5cJzU/gviz/tq?tqx=out:csv"
+# [설정] 구글 시트 CSV 웹 게시 링크
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/13ldXPSVT7CFyNZRj-6Rlv3aXMqOhflquUtcZom5cJzU/export?format=csv"
 
 def get_sheet_data():
-    """
-    구글 스프레드시트 데이터를 토큰 에러 없이 안전하게 실시간 로드합니다.
-    """
     try:
-        # on_bad_lines='skip': 형식이 깨진 불일치 행은 건너뛰어 파이프라인 중단 방지
-        # engine='python': 파이썬 C엔진 대신 유연한 파이썬 엔진을 사용하여 따옴표/구분자 오류 방지
-        df = pd.read_csv(
-            SHEET_CSV_URL, 
-            on_bad_lines='skip', 
-            engine='python'
-        )
+        df = pd.read_csv(SHEET_CSV_URL, on_bad_lines='skip', engine='python')
         return df.to_string(index=False)
     except Exception as e:
         return f"시트 데이터 로드 실패: {e}"
 
-
 def get_chat_session(api_key):
-    """
-    요정비닐 시스템 고도화 및 실시간 구글 시트 연동 아키텍트 세션 초기화
-    """
     if "gemini_client" not in st.session_state or st.session_state.get("current_api_key") != api_key:
         try:
             client = genai.Client(api_key=api_key)
@@ -40,7 +26,7 @@ def get_chat_session(api_key):
                 "당신은 요정비닐(Fairy Dream Co., Ltd.)의 스마트 팩토리 ERP 시스템을 진단하고 "
                 "효율을 극한으로 고도화하는 수석 시니어 시스템 아키텍트이자 AI 에이전트입니다. "
                 "Streamlit 대시보드 구조, 파이썬 코드 최적화, 업무 프로세스 자동화뿐만 아니라, "
-                "연동된 구글 시트(상품 목록 및 재고 데이터)의 실시간 내용을 기반으로 상품 정보, 가격, 수익률 등을 정확하게 분석하고 안내합니다."
+                "깃허브 저장소의 실제 소스 코드를 읽어 분석하고, 구글 시트의 실시간 상품 데이터를 결합하여 완벽한 솔루션을 제시합니다."
             )
             
             chat = client.chats.create(
@@ -57,11 +43,7 @@ def get_chat_session(api_key):
             
     return st.session_state.get("gemini_chat_session")
 
-
 def analyze_order_data(api_key, user_prompt):
-    """
-    구글 시트의 최신 실시간 데이터를 프롬프트에 주입하여 에이전트가 답변을 생성하도록 합니다.
-    """
     if "init_error" in st.session_state and st.session_state.init_error:
         err = st.session_state.init_error
         st.session_state.init_error = None
@@ -71,14 +53,41 @@ def analyze_order_data(api_key, user_prompt):
     if not chat_session:
         return "❌ 제미나이 API 연결 실패: API 키를 다시 확인해주세요."
         
-    # 구글 시트에서 최신 데이터를 실시간으로 긁어옴
+    # 1. 깃허브 저장소 코드 및 파일 구조 실시간 스캔 (시크릿 토큰 자동 활용)
+    github_code_context = ""
+    try:
+        gh_token = st.secrets.get("GITHUB_TOKEN", "")
+        if gh_token:
+            g = Github(gh_token)
+            repo = g.get_repo("leehy522/fairytable")
+            
+            # develop 브랜치 파일 목록 가져오기
+            contents = repo.get_contents("", ref="develop")
+            file_list = [c.path for c in contents]
+            
+            github_code_context += f"\n\n[현재 깃허브(develop) 저장소 파일 구조]: {file_list}"
+            
+            # 사용자가 특정 파일(예: app.py, invoice.py 등)에 대해 물어보면 해당 내용도 가져오기
+            for file_name in ["app.py", "pages/invoice.py", "pages/cost_simulator.py"]:
+                try:
+                    f_content = repo.get_contents(file_name, ref="develop")
+                    decoded_content = f_content.decoded_content.decode("utf-8")
+                    # 내용이 너무 길면 일부 발췌 또는 전체 주입
+                    github_code_context += f"\n\n--- [깃허브 파일 내용: {file_name}] ---\n{decoded_content[:3000]}..."
+                except:
+                    pass
+    except Exception as e:
+        github_code_context = f"\n\n[깃허브 연동 참고]: 코드 스캔 중 예외 발생 ({e})"
+
+    # 2. 구글 시트 실시간 데이터 가져오기
     live_sheet_data = get_sheet_data()
     
-    context_prompt = (
-        f"{user_prompt}\n\n"
-        f"--- [참고: 구글 스프레드시트 실시간 상품 및 재고 데이터] ---\n"
-        f"{live_sheet_data}\n"
-        f"--------------------------------------------------------"
+    # 3. 모든 컨텍스트를 종합하여 프롬프트 구성
+    full_prompt = (
+        f"{user_prompt}\n"
+        f"{github_code_context}\n\n"
+        f"--- [구글 스프레드시트 실시간 상품 데이터] ---\n"
+        f"{live_sheet_data}"
     )
 
     max_retries = 3
@@ -86,7 +95,7 @@ def analyze_order_data(api_key, user_prompt):
     
     for attempt in range(max_retries):
         try:
-            response = chat_session.send_message(context_prompt)
+            response = chat_session.send_message(full_prompt)
             return response.text
         except Exception as e:
             error_str = str(e)
@@ -97,11 +106,7 @@ def analyze_order_data(api_key, user_prompt):
             else:
                 return f"❌ [API 통신 중 에러 발생]: {error_str}"
 
-
 def generate_and_create_pr(api_key, github_token, task_description):
-    """
-    AI가 지시사항에 맞는 코드를 작성하고, 깃허브에 새 브랜치를 파서 커밋한 뒤 PR을 생성합니다.
-    """
     try:
         client = genai.Client(api_key=api_key)
         prompt = (
