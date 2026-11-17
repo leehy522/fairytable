@@ -40,17 +40,20 @@ def analyze_order_data(api_key, user_prompt):
     if not chat_session:
         return "❌ 제미나이 API 연결 실패: API 키를 다시 확인해주세요."
         
-    # 503 트래픽 과부하 발생 시 최대 3번까지 자동 재시도하는 안전장치
+    # 지수 백오프(Exponential Backoff) 재시도 로직
+    # 시도 횟수가 늘어날수록 대기 시간을 2초 -> 4초로 늘려 안정성 확보
     max_retries = 3
+    wait_time = 2
+    
     for attempt in range(max_retries):
         try:
             response = chat_session.send_message(user_prompt)
             return response.text
         except Exception as e:
             error_str = str(e)
-            # 503 에러이고 아직 재시도 횟수가 남았다면 1초 대기 후 재시도
-            if "503" in error_str and attempt < max_retries - 1:
-                time.sleep(1.5)
+            if ("503" in error_str or "UNAVAILABLE" in error_str) and attempt < max_retries - 1:
+                time.sleep(wait_time)
+                wait_time *= 2  # 대기 시간 배증
                 continue
             else:
                 return f"❌ [API 통신 중 에러 발생]: {error_str}"
